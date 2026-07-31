@@ -84,6 +84,8 @@
   dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
   fileInput.addEventListener('change', () => {
     const files = [...fileInput.files].filter(f => f.type.startsWith('image/'));
+    // Electron exposes .path on File objects from file input too
+    files.forEach(f => { if (f.path) f._sourcePath = f.path; });
     if (files.length) handleFiles(files);
     fileInput.value = '';
   });
@@ -175,6 +177,10 @@
       }
 
       btnSave.disabled = false;
+      // Show overwrite option if we know the original path
+      if (isElectron && file && file._sourcePath) {
+        overwriteWrap.classList.remove('hidden');
+      }
     } catch (err) {
       setStatus('err', 'Lỗi: ' + err.message);
     }
@@ -259,6 +265,19 @@
   // ── Save ──────────────────────────────────────────────────────────────────
   btnSave.addEventListener('click', async () => {
     if (!cleanBlob) return;
+
+    // Overwrite original file directly
+    if (isElectron && chkOverwrite.checked && currentFile && currentFile._sourcePath) {
+      const buf = await cleanBlob.arrayBuffer();
+      const result = await window.electronAPI.writeFile(currentFile._sourcePath, buf);
+      if (result.success) {
+        setStatus('ok', `✓ Đã ghi đè: ${currentFile._sourcePath.split(/[\\/]/).pop()}`);
+      } else {
+        setStatus('err', 'Ghi đè thất bại: ' + result.error);
+      }
+      return;
+    }
+
     const name = currentFile ? cleanName(currentFile.name) : 'clean-image.png';
     await saveBlob(cleanBlob, name);
   });
@@ -419,9 +438,8 @@
 
   function cleanName(name) {
     const dot = name.lastIndexOf('.');
-    return dot > 0
-      ? name.slice(0, dot) + '-clean' + name.slice(dot)
-      : name + '-clean';
+    // Keep original name (no -clean suffix) — used when saving via dialog
+    return dot > 0 ? name.slice(0, dot) : name;
   }
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
