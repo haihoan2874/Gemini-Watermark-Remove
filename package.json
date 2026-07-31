@@ -1,0 +1,74 @@
+{
+  "name": "gemini-watermark-remover",
+  "version": "1.0.0",
+  "description": "Tool xóa icon ✦ watermark Gemini khỏi ảnh AI-generated",
+  "main": "main.js",
+  "author": "Gemini Watermark Remover",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "build": "electron-packager . \"Gemini Watermark Remover\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent --ignore=convert-icon.mjs --ignore=create-ico.js --asar",
+    "build:dir": "electron-packager . \"Gemini Watermark Remover\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent"
+  },
+  "devDependencies": {
+    "@electron/packager": "^18.4.4",
+    "electron": "^36.4.0",
+    "electron-builder": "^24.13.3",
+    "esbuild": "^0.28.1",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.3"
+  },
+  "build": {
+    "appId": "com.gemini.watermark-remover",
+    "productName": "Gemini Watermark Remover",
+    "copyright": "Copyright © 2025",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "style.css",
+      "app.js",
+      "assets/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Gemini Watermark Remover",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeader": "assets/icon.ico",
+      "license": null,
+      "language": "1033"
+    },
+    "portable": {
+      "artifactName": "GeminiWatermarkRemover-Portable-${version}.exe"
+    }
+  },
+  "dependencies": {
+    "@pilio/gemini-watermark-remover": "^1.0.33"
+  }
+}
