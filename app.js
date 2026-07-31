@@ -21,6 +21,8 @@
   const queueList    = document.getElementById('queue-list');
   const qProgressBar = document.getElementById('q-progress-bar');
   const qProgressTxt = document.getElementById('q-progress-text');
+  const overwriteWrap = document.getElementById('overwrite-wrap');
+  const chkOverwrite  = document.getElementById('chk-overwrite');
 
   // Preview elements
   const beforeImg  = document.getElementById('before-img');
@@ -49,7 +51,7 @@
   // ── Native menu (Electron) ────────────────────────────────────────────────
   if (isElectron) {
     window.electronAPI.onOpenFiles((paths) => {
-      Promise.all(paths.map(pathToFile)).then(handleFiles);
+      Promise.all(paths.map(p => pathToFile(p).then(f => { f._sourcePath = p; return f; }))).then(handleFiles);
     });
   }
 
@@ -72,6 +74,10 @@
     e.preventDefault();
     dropZone.classList.remove('drag-over');
     const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+    // Electron exposes the real path on File objects via drag-and-drop
+    files.forEach(f => {
+      if (f.path) f._sourcePath = f.path;
+    });
     if (files.length) handleFiles(files);
   });
   dropZone.addEventListener('click', () => fileInput.click());
@@ -190,7 +196,7 @@
 
       try {
         const { blob, detection } = await processImage(f);
-        processedBlobs.push({ name: cleanName(f.name), blob, type: f.type });
+        processedBlobs.push({ name: cleanName(f.name), blob, type: f.type, sourcePath: f._sourcePath || null });
         if (qs) qs.textContent = detection.found ? '✓' : '—';
 
         const url = URL.createObjectURL(blob);
@@ -207,6 +213,11 @@
     btnSaveAll.disabled = false;
     btnSaveAll.classList.remove('hidden');
     btnProcess.disabled = false;
+    // Show overwrite option only if all files have a known source path
+    const allHavePaths = files.every(f => f._sourcePath);
+    if (isElectron && allHavePaths) {
+      overwriteWrap.classList.remove('hidden');
+    }
   }
 
   // ── Processing pipeline ───────────────────────────────────────────────────
@@ -258,7 +269,17 @@
     btnSaveAll.textContent = 'Đang lưu...';
 
     try {
-      if (isElectron) {
+      // Overwrite mode: ghi đè thẳng vào ảnh gốc
+      if (isElectron && chkOverwrite.checked) {
+        let ok = 0;
+        for (const { sourcePath, blob } of processedBlobs) {
+          if (!sourcePath) continue;
+          const buf = await blob.arrayBuffer();
+          const result = await window.electronAPI.writeFile(sourcePath, buf);
+          if (result.success) ok++;
+        }
+        setStatus('ok', `✓ Đã ghi đè ${ok} ảnh gốc`);
+      } else if (isElectron) {
         const res = await window.electronAPI.selectFolder();
         if (!res.canceled && res.filePaths.length > 0) {
           const folder = res.filePaths[0];
@@ -321,6 +342,8 @@
     btnProcess.disabled = true;
     btnSave.disabled = true;
     btnSaveAll.classList.add('hidden');
+    overwriteWrap.classList.add('hidden');
+    chkOverwrite.checked = false;
     
     clearAfterImage();
     [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
