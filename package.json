@@ -69,6 +69,8 @@
     }
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffmpeg-installer/win32-x64": "^4.1.0",
     "@pilio/gemini-watermark-remover": "^1.0.33"
   }
 }

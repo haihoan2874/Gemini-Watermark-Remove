@@ -586,3 +586,181 @@ body {
 
 /* ── Utilities ──────────────────────────────── */
 .hidden { display: none !important; }
+
+/* ── Video preview ──────────────────────────── */
+.preview-video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: none; /* hidden until video mode */
+  border-radius: 4px;
+}
+
+.preview-video.active {
+  display: block;
+}
+
+.preview-video--full {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* ── Video frame progress ────────────────────── */
+.video-progress {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.video-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.video-progress-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.video-progress-frames {
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.video-progress-track {
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.video-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-h));
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.2s ease;
+}
+
+.video-progress-time {
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+/* ── Batch Queue ─────────────────────────────── */
+.queue {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.queue-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+}
+
+.queue-progress-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-track {
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.queue-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.25s ease;
+}
+
+.queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.queue-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.queue-list li:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.queue-list li.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #fff;
+}
+
+.q-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.q-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-1);
+}
+
+.q-status {
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 14px;
+  text-align: right;
+  color: var(--text-3);
+}
+
+li.active .q-status {
+  color: var(--accent);
+}
+
+

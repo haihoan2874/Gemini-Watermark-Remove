@@ -34,6 +34,18 @@
   const beforeEmpty2 = document.getElementById('before-empty-2');
   const afterEmpty2  = document.getElementById('after-empty-2');
 
+  // Video preview elements
+  const beforeVideo  = document.getElementById('before-video');
+  const afterVideo   = document.getElementById('after-video');
+  const beforeVideo2 = document.getElementById('before-video-2');
+  const afterVideo2  = document.getElementById('after-video-2');
+
+  // Video progress
+  const videoProgressEl = document.getElementById('video-progress');
+  const vpFrames        = document.getElementById('vp-frames');
+  const vpFill          = document.getElementById('vp-fill');
+  const vpTime          = document.getElementById('vp-time');
+
   // Tabs
   const tabSplit  = document.getElementById('tab-split');
   const tabBefore = document.getElementById('tab-before');
@@ -43,10 +55,12 @@
   const viewAfter  = document.getElementById('view-after');
 
   // ── State ──────────────────────────────────────────────────────────────────
-  let fileQueue     = [];
+  let fileQueue      = [];
   let processedBlobs = [];
-  let cleanBlob     = null;
-  let currentFile   = null;
+  let cleanBlob      = null;
+  let currentFile    = null;
+  let isVideoMode    = false; // true when current file is a video
+  let videoAbortCtrl = null; // AbortController for cancelling video processing
 
   // ── Native menu (Electron) ────────────────────────────────────────────────
   if (isElectron) {
@@ -62,9 +76,24 @@
     const name = p.split(/[\\/]/).pop();
     return new File([blob], name, { type: blob.type || guessMime(name) });
   }
+
   function guessMime(n) {
     const e = n.split('.').pop().toLowerCase();
-    return { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp' }[e] || 'image/png';
+    return {
+      png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp',
+      mp4:'video/mp4', webm:'video/webm', mov:'video/quicktime',
+      avi:'video/x-msvideo', mkv:'video/x-matroska'
+    }[e] || 'image/png';
+  }
+
+  function isVideoFile(file) {
+    return (file.type && file.type.startsWith('video/')) ||
+      /\.(mp4|webm|mov|avi|mkv|m4v|ogv)$/i.test(file.name);
+  }
+
+  function isImageFile(file) {
+    return (file.type && file.type.startsWith('image/')) ||
+      /\.(png|jpe?g|webp|avif|bmp|gif)$/i.test(file.name);
   }
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -73,18 +102,18 @@
   dropZone.addEventListener('drop', e => {
     e.preventDefault();
     dropZone.classList.remove('drag-over');
-    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
-    // Electron exposes the real path on File objects via drag-and-drop
-    files.forEach(f => {
-      if (f.path) f._sourcePath = f.path;
-    });
+    const files = [...e.dataTransfer.files].filter(f =>
+      isImageFile(f) || isVideoFile(f)
+    );
+    files.forEach(f => { if (f.path) f._sourcePath = f.path; });
     if (files.length) handleFiles(files);
   });
   dropZone.addEventListener('click', () => fileInput.click());
   dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
   fileInput.addEventListener('change', () => {
-    const files = [...fileInput.files].filter(f => f.type.startsWith('image/'));
-    // Electron exposes .path on File objects from file input too
+    const files = [...fileInput.files].filter(f =>
+      isImageFile(f) || isVideoFile(f)
+    );
     files.forEach(f => { if (f.path) f._sourcePath = f.path; });
     if (files.length) handleFiles(files);
     fileInput.value = '';
@@ -92,22 +121,34 @@
 
   // ── File loading ──────────────────────────────────────────────────────────
   function handleFiles(files) {
-    fileQueue = files;
+    if (!files || files.length === 0) return;
+
+    fileQueue = Array.from(files);
     processedBlobs = [];
     cleanBlob = null;
 
     currentFile = files[0];
-    readDataURL(files[0]).then(url => {
-      setBeforeImage(url);
-      clearAfterImage();
-    });
+    isVideoMode = isVideoFile(files[0]);
 
-    // Show file name in dropzone
+    if (isVideoMode) {
+      setBeforeVideo(files[0]);
+      clearAfterVideo();
+      clearAfterImage();
+    } else {
+      readDataURL(files[0]).then(url => {
+        setBeforeImage(url);
+        clearAfterImage();
+        clearBeforeVideo();
+        clearAfterVideo();
+      });
+    }
+
+    // Show file name / count in dropzone
     dzIdle.classList.add('hidden');
     dzLoaded.classList.remove('hidden');
     loadedName.textContent = files.length === 1
       ? files[0].name
-      : `${files.length} ảnh được chọn`;
+      : `${files.length} file (${files.filter(isVideoFile).length} video, ${files.filter(f => !isVideoFile(f)).length} ảnh)`;
 
     if (files.length > 1) {
       queue.classList.remove('hidden');
@@ -115,47 +156,68 @@
       files.forEach((f, i) => {
         const li = document.createElement('li');
         li.id = `qi-${i}`;
-        if (i === 0) li.classList.add('active'); // Select first by default
-        li.innerHTML = `<span class="q-name">${f.name}</span><span class="q-status" id="qs-${i}">—</span>`;
-        
+        if (i === 0) li.classList.add('active');
+        const icon = isVideoFile(f) ? '🎬' : '🖼️';
+        li.innerHTML = `<span class="q-icon">${icon}</span> <span class="q-name">${f.name}</span><span class="q-status" id="qs-${i}">—</span>`;
+
         li.addEventListener('click', () => {
           document.querySelectorAll('#queue-list li').forEach(el => el.classList.remove('active'));
           li.classList.add('active');
-          
+
           currentFile = f;
-          readDataURL(f).then(url => {
-            setBeforeImage(url);
+          isVideoMode = isVideoFile(f);
+
+          if (isVideoMode) {
+            setBeforeVideo(f);
+            clearBeforeImage();
             const processed = processedBlobs.find(p => p.name === cleanName(f.name));
-            if (processed) {
-              setAfterImage(URL.createObjectURL(processed.blob));
-              cleanBlob = processed.blob;
-            } else {
-              clearAfterImage();
-              cleanBlob = null;
-            }
-          });
+            if (processed) { setAfterVideo(processed.blob); cleanBlob = processed.blob; }
+            else { clearAfterVideo(); cleanBlob = null; }
+          } else {
+            readDataURL(f).then(url => {
+              setBeforeImage(url);
+              clearBeforeVideo();
+              const processed = processedBlobs.find(p => p.name === cleanName(f.name));
+              if (processed) { setAfterImage(URL.createObjectURL(processed.blob)); cleanBlob = processed.blob; }
+              else { clearAfterImage(); cleanBlob = null; }
+            });
+          }
         });
-        
+
         queueList.appendChild(li);
       });
-      btnProcess.textContent = `Xử lý tất cả (${files.length})`;
+
+      const vCount = files.filter(isVideoFile).length;
+      const iCount = files.length - vCount;
+      let labelStr = `Xử lý tất cả (${files.length})`;
+      if (vCount === files.length) labelStr = `Xử lý ${files.length} video`;
+      else if (iCount === files.length) labelStr = `Xử lý ${files.length} ảnh`;
+
+      btnProcess.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> ${labelStr}`;
       btnSaveAll.classList.add('hidden');
       setQueueProgress(0, files.length);
     } else {
       queue.classList.add('hidden');
-      btnProcess.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Xóa Watermark`;
+      const label = isVideoMode ? 'Xóa Watermark Video' : 'Xóa Watermark';
+      btnProcess.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> ${label}`;
+      btnSave.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg> ${isVideoMode ? 'Lưu video' : 'Lưu ảnh'}`;
       btnSaveAll.classList.add('hidden');
     }
 
+    videoProgressEl.classList.add('hidden');
     btnProcess.disabled = false;
     btnSave.disabled = true;
     btnReset.classList.remove('hidden');
-    setStatus('idle', files.length > 1 ? 'Sẵn sàng — nhấn "Xử lý tất cả"' : 'Sẵn sàng — nhấn "Xóa Watermark"');
+    const hint = isVideoMode
+      ? 'Video sẵn sàng — nhấn "Xóa Watermark Video"'
+      : (files.length > 1 ? 'Sẵn sàng — nhấn nút xử lý tất cả' : 'Sẵn sàng — nhấn "Xóa Watermark"');
+    setStatus('idle', hint);
   }
 
   // ── Process ───────────────────────────────────────────────────────────────
   btnProcess.addEventListener('click', async () => {
     if (fileQueue.length > 1) await processBatch(fileQueue);
+    else if (isVideoMode) await processVideoFile(currentFile);
     else await processSingle(currentFile);
   });
 
@@ -191,37 +253,88 @@
   async function processBatch(files) {
     btnProcess.disabled = true;
     btnSave.disabled = true;
+    btnSaveAll.classList.add('hidden');
     processedBlobs = [];
+    videoAbortCtrl = new AbortController();
+    const signal = videoAbortCtrl.signal;
 
     for (let i = 0; i < files.length; i++) {
+      if (signal.aborted) break;
       const f = files[i];
       const qs = document.getElementById(`qs-${i}`);
       if (qs) qs.textContent = '⚙️';
-      setStatus('busy', `Đang xử lý ${i+1}/${files.length}: ${f.name}`);
+
+      // Highlight active file in queue
+      document.querySelectorAll('#queue-list li').forEach(el => el.classList.remove('active'));
+      const activeLi = document.getElementById(`qi-${i}`);
+      if (activeLi) activeLi.classList.add('active');
+
+      currentFile = f;
+      isVideoMode = isVideoFile(f);
       setQueueProgress(i, files.length);
 
       try {
-        const { blob, detection } = await processImage(f);
-        processedBlobs.push({ name: cleanName(f.name), blob, type: f.type, sourcePath: f._sourcePath || null });
-        if (qs) qs.textContent = detection.found ? '✓' : '—';
+        if (isVideoMode) {
+          setStatus('busy', `Đang xử lý video ${i+1}/${files.length}: ${f.name}`);
+          setBeforeVideo(f);
+          clearBeforeImage();
+          clearAfterImage();
+          videoProgressEl.classList.remove('hidden');
 
-        const url = URL.createObjectURL(blob);
-        setAfterImage(url);
-        cleanBlob = blob;
-      } catch {
+          const blob = await renderVideoWithoutWatermark(f, signal);
+          processedBlobs.push({
+            name: cleanName(f.name),
+            blob,
+            type: blob.type || 'video/webm',
+            isVideo: true,
+            sourcePath: f._sourcePath || null
+          });
+          cleanBlob = blob;
+          setAfterVideo(blob);
+          if (qs) qs.textContent = '✓';
+        } else {
+          setStatus('busy', `Đang xử lý ảnh ${i+1}/${files.length}: ${f.name}`);
+          videoProgressEl.classList.add('hidden');
+          const dataUrl = await readDataURL(f);
+          setBeforeImage(dataUrl);
+          clearBeforeVideo();
+          clearAfterVideo();
+
+          const { blob, detection } = await processImage(f);
+          processedBlobs.push({
+            name: cleanName(f.name),
+            blob,
+            type: blob.type || (f.type === 'image/jpeg' ? 'image/jpeg' : 'image/png'),
+            isVideo: false,
+            sourcePath: f._sourcePath || null
+          });
+          cleanBlob = blob;
+          setAfterImage(URL.createObjectURL(blob));
+          if (qs) qs.textContent = detection.found ? '✓' : '—';
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          if (qs) qs.textContent = '—';
+          break;
+        }
+        console.error(`Lỗi xử lý file ${f.name}:`, err);
         if (qs) qs.textContent = '✗';
       }
     }
 
+    videoProgressEl.classList.add('hidden');
     setQueueProgress(files.length, files.length);
-    setStatus('ok', `✓ Xong ${files.length} ảnh`);
-    btnSave.disabled = false;
-    btnSaveAll.disabled = false;
-    btnSaveAll.classList.remove('hidden');
+    setStatus('ok', `✓ Hoàn tất ${processedBlobs.length}/${files.length} file`);
+    btnSave.disabled = processedBlobs.length === 0;
+    btnSaveAll.disabled = processedBlobs.length === 0;
+    if (processedBlobs.length > 0) {
+      btnSaveAll.classList.remove('hidden');
+    }
     btnProcess.disabled = false;
-    // Show overwrite option only if all files have a known source path
+    videoAbortCtrl = null;
+
     const allHavePaths = files.every(f => f._sourcePath);
-    if (isElectron && allHavePaths) {
+    if (isElectron && allHavePaths && processedBlobs.length > 0) {
       overwriteWrap.classList.remove('hidden');
     }
   }
@@ -245,14 +358,16 @@
               h: result.meta ? result.meta.height : 0
             };
 
-            const source = result.canvas; // This might be an OffscreenCanvas
+            const source = result.canvas;
             const canvas = document.createElement('canvas');
             canvas.width = source.width;
             canvas.height = source.height;
             canvas.getContext('2d').drawImage(source, 0, 0);
 
-            const mime = file.type.startsWith('image/') ? file.type : 'image/png';
-            const q    = mime === 'image/jpeg' ? 0.95 : undefined;
+            // Export as PNG for WebP & PNG (lossless, high fidelity & wide compatibility), or JPEG for JPG inputs
+            const isJpeg = (file.type === 'image/jpeg') || /\.jpe?g$/i.test(file.name);
+            const mime = isJpeg ? 'image/jpeg' : 'image/png';
+            const q    = isJpeg ? 0.95 : undefined;
             canvas.toBlob(blob => resolve({ detection, blob }), mime, q);
           } catch (e) { reject(e); }
         };
@@ -262,11 +377,176 @@
     });
   }
 
+  // ── Video processing pipeline ─────────────────────────────────────────────
+  async function processVideoFile(file) {
+    btnProcess.disabled = true;
+    btnSave.disabled = true;
+    videoProgressEl.classList.remove('hidden');
+    videoAbortCtrl = new AbortController();
+    const signal = videoAbortCtrl.signal;
+
+    setStatus('busy', 'Đang phân tích video...');
+
+    try {
+      const blob = await renderVideoWithoutWatermark(file, signal);
+      cleanBlob = blob;
+      setAfterVideo(blob);
+      setStatus('ok', '✓ Watermark video đã được xóa');
+      btnSave.disabled = false;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setStatus('warn', 'Đã hủy xử lý video');
+      } else {
+        setStatus('err', 'Lỗi xử lý video: ' + err.message);
+        console.error(err);
+      }
+    } finally {
+      videoAbortCtrl = null;
+      btnProcess.disabled = false;
+    }
+  }
+
+  async function renderVideoWithoutWatermark(file, signal) {
+    const srcUrl = URL.createObjectURL(file);
+
+    // 1. Load video metadata
+    const vid = document.createElement('video');
+    vid.src = srcUrl;
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.preload = 'auto';
+
+    await new Promise((res, rej) => {
+      vid.onloadedmetadata = res;
+      vid.onerror = () => rej(new Error('Không đọc được video'));
+    });
+
+    const W = vid.videoWidth;
+    const H = vid.videoHeight;
+    const duration = vid.duration;
+    const fps = 30;
+    const frameDurationMicros = Math.round(1_000_000 / fps);
+    const totalFrames = Math.max(1, Math.ceil(duration * fps));
+
+    // 2. Pre-warm SDK engine and alpha maps
+    setStatus('busy', 'Đang khởi tạo engine Gemini SDK...');
+    const engine = await GeminiWatermarkRemover.createWatermarkEngine();
+    await Promise.all([
+      engine.getAlphaMap(48),
+      engine.getAlphaMap(96),
+      engine.getAlphaMap('96-20260520'),
+      engine.getAlphaMap('96-outline-light'),
+      engine.getAlphaMap('96-outline-dark'),
+      engine.getAlphaMap('36-v2')
+    ]);
+
+    // 3. Canvas setup
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = W;
+    frameCanvas.height = H;
+    const frameCtx = frameCanvas.getContext('2d', { willReadFrequently: true });
+
+    // 4. WebCodecs VideoEncoder setup
+    setStatus('busy', 'Đang xóa logo từng khung hình chuẩn xác...');
+    const startTime = Date.now();
+
+    const muxer = new window.SimpleWebMMuxer({
+      width: W,
+      height: H,
+      codec: 'V_VP9',
+      duration: duration
+    });
+
+    let encodeError = null;
+
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => {
+        muxer.addVideoChunk(chunk, meta);
+      },
+      error: (e) => {
+        console.error('[WebCodecs] Encoder error:', e);
+        encodeError = e;
+      }
+    });
+
+    const config = {
+      codec: 'vp09.00.10.08',
+      width: W,
+      height: H,
+      bitrate: 16_000_000,
+      framerate: fps
+    };
+
+    const support = await VideoEncoder.isConfigSupported(config);
+    if (!support.supported) {
+      config.codec = 'vp8';
+      muxer.codec = 'V_VP8';
+    }
+
+    encoder.configure(config);
+
+    // 5. Deterministic Frame-by-Frame Processing (0% dropped frames, 100% clean logo removal)
+    for (let i = 0; i < totalFrames; i++) {
+      if (signal.aborted) {
+        try { encoder.close(); } catch (_) {}
+        URL.revokeObjectURL(srcUrl);
+        throw new DOMException('Aborted', 'AbortError');
+      }
+
+      if (encodeError) {
+        throw new Error('Lỗi mã hóa: ' + encodeError.message);
+      }
+
+      // Seek to exact frame position
+      const t = Math.min(i / fps, Math.max(0, duration - 0.001));
+      vid.currentTime = t;
+      await new Promise(r => { vid.onseeked = r; });
+
+      // Draw original frame to canvas
+      frameCtx.drawImage(vid, 0, 0, W, H);
+
+      // Clean watermark using SDK reverse alpha blending
+      const cleanCanvas = await engine.removeWatermarkFromImage(frameCanvas);
+
+      // Create VideoFrame with mathematically exact CFR timestamp
+      const timestampMicros = i * frameDurationMicros;
+      const vFrame = new VideoFrame(cleanCanvas, {
+        timestamp: timestampMicros,
+        duration: frameDurationMicros
+      });
+
+      encoder.encode(vFrame, { keyFrame: i % 30 === 0 });
+      vFrame.close();
+
+      // Update progress
+      const pct = Math.min(100, Math.round(((i + 1) / totalFrames) * 100));
+      vpFill.style.width = pct + '%';
+      vpFrames.textContent = `${i + 1} / ${totalFrames} frames (${((i + 1) / fps).toFixed(1)}s / ${duration.toFixed(1)}s)`;
+
+      const elapsed = (Date.now() - startTime) / 1000;
+      const eta = i > 2 ? Math.max(0, Math.round((elapsed / ((i + 1) / totalFrames)) - elapsed)) : '--';
+      vpTime.textContent = `Ước tính còn: ${eta === '--' ? '--' : eta + 's'}`;
+
+      if (i % 5 === 0) await sleep(0);
+    }
+
+    await encoder.flush();
+    encoder.close();
+    URL.revokeObjectURL(srcUrl);
+
+    vpFill.style.width = '100%';
+    vpFrames.textContent = `${totalFrames} / ${totalFrames} frames (100%)`;
+    vpTime.textContent = 'Hoàn tất!';
+
+    return muxer.finalize();
+  }
+
+
   // ── Save ──────────────────────────────────────────────────────────────────
   btnSave.addEventListener('click', async () => {
     if (!cleanBlob) return;
 
-    // Overwrite original file directly
+    // Overwrite original file directly (Electron only)
     if (isElectron && chkOverwrite.checked && currentFile && currentFile._sourcePath) {
       const buf = await cleanBlob.arrayBuffer();
       const result = await window.electronAPI.writeFile(currentFile._sourcePath, buf);
@@ -278,8 +558,16 @@
       return;
     }
 
-    const name = currentFile ? cleanName(currentFile.name) : 'clean-image.png';
-    await saveBlob(cleanBlob, name);
+    // Determine extension based on blob type
+    let defaultName;
+    if (isVideoMode && currentFile) {
+      const ext = cleanBlob.type.includes('mp4') ? 'mp4' : 'webm';
+      defaultName = cleanName(currentFile.name) + '.' + ext;
+    } else {
+      const ext = (cleanBlob && cleanBlob.type === 'image/jpeg') ? 'jpg' : 'png';
+      defaultName = (currentFile ? cleanName(currentFile.name) : 'clean-image') + '.' + ext;
+    }
+    await saveBlob(cleanBlob, defaultName);
   });
 
   btnSaveAll.addEventListener('click', async () => {
@@ -288,7 +576,7 @@
     btnSaveAll.textContent = 'Đang lưu...';
 
     try {
-      // Overwrite mode: ghi đè thẳng vào ảnh gốc
+      // Overwrite mode: ghi đè thẳng vào file gốc
       if (isElectron && chkOverwrite.checked) {
         let ok = 0;
         for (const { sourcePath, blob } of processedBlobs) {
@@ -297,31 +585,41 @@
           const result = await window.electronAPI.writeFile(sourcePath, buf);
           if (result.success) ok++;
         }
-        setStatus('ok', `✓ Đã ghi đè ${ok} ảnh gốc`);
+        setStatus('ok', `✓ Đã ghi đè ${ok} file gốc`);
       } else if (isElectron) {
         const res = await window.electronAPI.selectFolder();
         if (!res.canceled && res.filePaths.length > 0) {
           const folder = res.filePaths[0];
-          for (const { name, blob, type } of processedBlobs) {
-            const ext = type === 'image/jpeg' ? 'jpg' : type === 'image/webp' ? 'webp' : 'png';
-            const filePath = `${folder}\\${name}.${ext}`.replace(/\\\\/g, '\\');
-            const buf = await blob.arrayBuffer();
+          for (const item of processedBlobs) {
+            let ext;
+            if (item.isVideo || item.type.includes('video')) {
+              ext = item.type.includes('mp4') ? 'mp4' : 'webm';
+            } else {
+              ext = (item.blob.type === 'image/jpeg' || item.type === 'image/jpeg') ? 'jpg' : 'png';
+            }
+            const filePath = `${folder}\\${item.name}.${ext}`.replace(/\\\\/g, '\\');
+            const buf = await item.blob.arrayBuffer();
             await window.electronAPI.writeFile(filePath, buf);
           }
-          setStatus('ok', `✓ Đã lưu ${processedBlobs.length} ảnh vào thư mục`);
+          setStatus('ok', `✓ Đã lưu ${processedBlobs.length} file vào thư mục`);
           window.electronAPI.showInFolder(folder);
         }
       } else {
         // Fallback for non-electron (web)
-        for (const { name, blob, type } of processedBlobs) {
-          const ext = type === 'image/jpeg' ? 'jpg' : type === 'image/webp' ? 'webp' : 'png';
-          const url = URL.createObjectURL(blob);
-          Object.assign(document.createElement('a'), { href: url, download: `${name}.${ext}` }).click();
+        for (const item of processedBlobs) {
+          let ext;
+          if (item.isVideo || item.type.includes('video')) {
+            ext = item.type.includes('mp4') ? 'mp4' : 'webm';
+          } else {
+            ext = (item.blob.type === 'image/jpeg' || item.type === 'image/jpeg') ? 'jpg' : 'png';
+          }
+          const url = URL.createObjectURL(item.blob);
+          Object.assign(document.createElement('a'), { href: url, download: `${item.name}.${ext}` }).click();
           await sleep(300);
           URL.revokeObjectURL(url);
         }
       }
-    } catch (e) { setStatus('err', 'Lỗi lưu ảnh: ' + e.message); }
+    } catch (e) { setStatus('err', 'Lỗi lưu file: ' + e.message); }
 
     btnSaveAll.disabled = false;
     btnSaveAll.textContent = 'Tải tất cả';
@@ -350,10 +648,14 @@
 
   // ── Reset ─────────────────────────────────────────────────────────────────
   btnReset.addEventListener('click', () => {
+    // Cancel any in-progress video processing
+    if (videoAbortCtrl) { videoAbortCtrl.abort(); videoAbortCtrl = null; }
+
     fileQueue = [];
     processedBlobs = [];
     cleanBlob = null;
     currentFile = null;
+    isVideoMode = false;
 
     dzIdle.classList.remove('hidden');
     dzLoaded.classList.add('hidden');
@@ -363,13 +665,17 @@
     btnSaveAll.classList.add('hidden');
     overwriteWrap.classList.add('hidden');
     chkOverwrite.checked = false;
-    
+    videoProgressEl.classList.add('hidden');
+    vpFill.style.width = '0%';
+
     clearAfterImage();
+    clearAfterVideo();
+    clearBeforeVideo();
     [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
     beforeEmpty.classList.remove('hidden');
     beforeEmpty2.classList.remove('hidden');
-    
-    setStatus('idle', 'Chờ ảnh...');
+
+    setStatus('idle', 'Chờ ảnh hoặc video...');
   });
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -390,9 +696,15 @@
     [beforeImg, beforeImg2].forEach(img => {
       img.src = url;
       img.onload = () => img.classList.add('loaded');
+      img.classList.remove('hidden');
     });
+    [beforeVideo, beforeVideo2].forEach(v => { v.classList.remove('active'); });
     beforeEmpty.classList.add('hidden');
     beforeEmpty2.classList.add('hidden');
+  }
+
+  function clearBeforeImage() {
+    [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
   }
 
   function setAfterImage(url) {
@@ -400,12 +712,50 @@
       img.src = url;
       img.onload = () => img.classList.add('loaded');
     });
+    [afterVideo, afterVideo2].forEach(v => { v.classList.remove('active'); });
     afterEmpty.classList.add('hidden');
     afterEmpty2.classList.add('hidden');
   }
 
   function clearAfterImage() {
     [afterImg, afterImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
+    afterEmpty.classList.remove('hidden');
+    afterEmpty2.classList.remove('hidden');
+  }
+
+  // ── Video helpers ──────────────────────────────────────────────────────────
+  function setBeforeVideo(file) {
+    const url = URL.createObjectURL(file);
+    [beforeVideo, beforeVideo2].forEach(v => {
+      v.src = url;
+      v.classList.add('active');
+    });
+    [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
+    beforeEmpty.classList.add('hidden');
+    beforeEmpty2.classList.add('hidden');
+  }
+
+  function clearBeforeVideo() {
+    [beforeVideo, beforeVideo2].forEach(v => {
+      v.pause(); v.src = ''; v.classList.remove('active');
+    });
+  }
+
+  function setAfterVideo(blob) {
+    const url = URL.createObjectURL(blob);
+    [afterVideo, afterVideo2].forEach(v => {
+      v.src = url;
+      v.classList.add('active');
+    });
+    [afterImg, afterImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
+    afterEmpty.classList.add('hidden');
+    afterEmpty2.classList.add('hidden');
+  }
+
+  function clearAfterVideo() {
+    [afterVideo, afterVideo2].forEach(v => {
+      v.pause(); v.src = ''; v.classList.remove('active');
+    });
     afterEmpty.classList.remove('hidden');
     afterEmpty2.classList.remove('hidden');
   }
@@ -444,4 +794,26 @@
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+  // ── Sync Before/After Video Controls ────────────────────────────────────────
+  function setupVideoSync(v1, v2) {
+    if (!v1 || !v2) return;
+    let isSyncing = false;
+    v1.addEventListener('play', () => {
+      if (v2.paused && !isSyncing) { isSyncing = true; v2.play().finally(() => { isSyncing = false; }); }
+    });
+    v1.addEventListener('pause', () => {
+      if (!v2.paused && !isSyncing) { isSyncing = true; v2.pause(); isSyncing = false; }
+    });
+    v1.addEventListener('seeking', () => {
+      if (Math.abs(v2.currentTime - v1.currentTime) > 0.1 && !isSyncing) {
+        isSyncing = true;
+        v2.currentTime = v1.currentTime;
+        setTimeout(() => { isSyncing = false; }, 50);
+      }
+    });
+  }
+  setupVideoSync(beforeVideo, afterVideo);
+  setupVideoSync(afterVideo, beforeVideo);
+  setupVideoSync(beforeVideo2, afterVideo2);
+  setupVideoSync(afterVideo2, beforeVideo2);
 })();

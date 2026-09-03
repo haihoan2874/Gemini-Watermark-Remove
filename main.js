@@ -162,6 +162,78 @@ ipcMain.handle('show-in-folder', async (event, filePath) => {
   shell.showItemInFolder(filePath);
 });
 
+// ── IPC: Process video natively with FFmpeg ──────────────────────────────────
+ipcMain.handle('process-video', async (event, { sourcePath, buffer, watermarkRect, width, height }) => {
+  const os = require('os');
+  const fs = require('fs');
+  const { spawn } = require('child_process');
+  const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+  const ffmpegPath = ffmpegInstaller.path;
+
+  const tmpDir = os.tmpdir();
+  let inputPath = sourcePath && fs.existsSync(sourcePath) ? sourcePath : null;
+  let tempInputCreated = false;
+
+  if (!inputPath) {
+    inputPath = path.join(tmpDir, `gemini_in_${Date.now()}.mp4`);
+    fs.writeFileSync(inputPath, Buffer.from(buffer));
+    tempInputCreated = true;
+  }
+
+  const outputPath = path.join(tmpDir, `gemini_clean_${Date.now()}.mp4`);
+
+  // Ensure coordinates are even numbers for YUV420p compliance
+  const rawX = Math.max(0, Math.round(watermarkRect?.x ?? (width - 80)));
+  const rawY = Math.max(0, Math.round(watermarkRect?.y ?? (height - 80)));
+  const rawW = Math.max(16, Math.min(width - rawX, Math.round(watermarkRect?.w ?? 56)));
+  const rawH = Math.max(16, Math.min(height - rawY, Math.round(watermarkRect?.h ?? 56)));
+
+  const x = Math.floor(rawX / 2) * 2;
+  const y = Math.floor(rawY / 2) * 2;
+  const w = Math.min(width - x, Math.ceil(rawW / 2) * 2);
+  const h = Math.min(height - y, Math.ceil(rawH / 2) * 2);
+
+  const args = [
+    '-y',
+    '-i', inputPath,
+    '-vf', `delogo=x=${x}:y=${y}:w=${w}:h=${h}:show=0`,
+    '-c:v', 'libx264',
+    '-crf', '17',
+    '-preset', 'fast',
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'copy',
+    outputPath
+  ];
+
+  return new Promise((resolve) => {
+    let stderr = '';
+    const proc = spawn(ffmpegPath, args, { windowsHide: true });
+
+    proc.stderr.on('data', (d) => {
+      stderr += d.toString();
+    });
+
+    proc.on('close', (code) => {
+      if (code === 0 && fs.existsSync(outputPath)) {
+        const outBuf = fs.readFileSync(outputPath);
+        try { fs.unlinkSync(outputPath); } catch (_) {}
+        if (tempInputCreated) { try { fs.unlinkSync(inputPath); } catch (_) {} }
+        resolve({ success: true, buffer: outBuf });
+      } else {
+        if (tempInputCreated) { try { fs.unlinkSync(inputPath); } catch (_) {} }
+        resolve({ success: false, error: `Lỗi FFmpeg (code ${code}): ${stderr.slice(-300)}` });
+      }
+    });
+
+    proc.on('error', (err) => {
+      if (tempInputCreated) { try { fs.unlinkSync(inputPath); } catch (_) {} }
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
+
+
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   createWindow();

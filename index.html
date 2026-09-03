@@ -22,6 +22,7 @@
     <div class="topbar-meta">
       <span class="badge">Local · Private</span>
       <span class="badge">PNG · JPG · WebP</span>
+      <span class="badge">MP4 · WebM · MOV</span>
     </div>
   </header>
 
@@ -42,16 +43,16 @@
         <input
           type="file"
           id="file-input"
-          accept="image/*"
+          accept="image/*,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/avi,video/mov"
           multiple
-          aria-label="Chọn file ảnh"
+          aria-label="Chọn file ảnh hoặc video"
         />
         <div class="dropzone-idle" id="dz-idle">
           <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <p class="dropzone-label">Kéo ảnh vào đây</p>
-          <p class="dropzone-hint">hoặc nhấn để chọn · PNG, JPG, WebP</p>
+          <p class="dropzone-label">Kéo ảnh hoặc video vào đây</p>
+          <p class="dropzone-hint">hoặc nhấn để chọn · PNG, JPG, WebP · MP4, WebM, MOV</p>
         </div>
         <div class="dropzone-loaded hidden" id="dz-loaded">
           <svg class="dropzone-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -65,7 +66,19 @@
       <!-- Status -->
       <div class="status-row" id="status-row">
         <span class="status-dot" id="status-dot"></span>
-        <span class="status-msg" id="status-msg">Chờ ảnh...</span>
+        <span class="status-msg" id="status-msg">Chờ ảnh hoặc video...</span>
+      </div>
+
+      <!-- Video frame progress (hidden by default) -->
+      <div class="video-progress hidden" id="video-progress">
+        <div class="video-progress-header">
+          <span class="video-progress-label">🎬 Đang xử lý video</span>
+          <span class="video-progress-frames" id="vp-frames">0 / 0 frames</span>
+        </div>
+        <div class="video-progress-track">
+          <div class="video-progress-fill" id="vp-fill"></div>
+        </div>
+        <span class="video-progress-time" id="vp-time">Ước tính: --</span>
       </div>
 
       <!-- Actions -->
@@ -126,13 +139,15 @@
         <div class="img-box">
           <span class="img-label">TRƯỚC</span>
           <img id="before-img" class="preview-img" alt="Ảnh gốc" draggable="false"/>
+          <video id="before-video" class="preview-video" muted playsinline controls></video>
           <div class="img-empty" id="before-empty">
-            <span>Chưa có ảnh</span>
+            <span>Chưa có file</span>
           </div>
         </div>
         <div class="img-box">
           <span class="img-label img-label--after">SAU</span>
           <img id="after-img" class="preview-img" alt="Ảnh sau xử lý" draggable="false"/>
+          <video id="after-video" class="preview-video" muted playsinline controls></video>
           <div class="img-empty" id="after-empty">
             <span>Chưa xử lý</span>
           </div>
@@ -142,10 +157,12 @@
       <!-- Single views -->
       <div class="single-view hidden" id="view-before">
         <img id="before-img-2" class="preview-img preview-img--full" alt="Ảnh gốc" draggable="false"/>
-        <div class="img-empty" id="before-empty-2"><span>Chưa có ảnh</span></div>
+        <video id="before-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
+        <div class="img-empty" id="before-empty-2"><span>Chưa có file</span></div>
       </div>
       <div class="single-view hidden" id="view-after">
         <img id="after-img-2" class="preview-img preview-img--full" alt="Ảnh sau xử lý" draggable="false"/>
+        <video id="after-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
         <div class="img-empty" id="after-empty-2"><span>Chưa xử lý</span></div>
       </div>
 
@@ -155,6 +172,7 @@
 </div>
 
 <script src="assets/gemini-sdk.js"></script>
+<script src="assets/webm-muxer.js"></script>
 <script src="watermark-detector.js"></script>
 <script src="app.js"></script>
 </body>
