@@ -1175,4 +1175,468 @@
   setupVideoSync(afterVideo, beforeVideo);
   setupVideoSync(beforeVideo2, afterVideo2);
   setupVideoSync(afterVideo2, beforeVideo2);
+
+  // ── Main tab switcher ──────────────────────────────────────────────────────
+  const mtabRemove = document.getElementById('mtab-remove');
+  const mtabLogo   = document.getElementById('mtab-logo');
+  const tcRemove   = document.getElementById('tc-remove');
+  const tcLogo     = document.getElementById('tc-logo');
+
+  function switchMainTab(tab) {
+    if (tab === 'logo') {
+      mtabRemove.classList.remove('active');
+      mtabLogo.classList.add('active');
+      tcRemove.classList.add('hidden');
+      tcLogo.classList.remove('hidden');
+    } else {
+      mtabLogo.classList.remove('active');
+      mtabRemove.classList.add('active');
+      tcLogo.classList.add('hidden');
+      tcRemove.classList.remove('hidden');
+    }
+  }
+
+  mtabRemove.addEventListener('click', () => switchMainTab('remove'));
+  mtabLogo.addEventListener('click',   () => switchMainTab('logo'));
+
+})();
+
+// ── Logo Tab Module (independent) ─────────────────────────────────────────────
+(() => {
+  const isElectron = typeof window.electronAPI !== 'undefined';
+
+  // DOM refs
+  const mediaDropEl   = document.getElementById('logo-media-drop');
+  const mediaInput    = document.getElementById('logo-media-input');
+  const lmIdle        = document.getElementById('lm-idle');
+  const lmLoaded      = document.getElementById('lm-loaded');
+  const lmName        = document.getElementById('lm-name');
+  const logoUploader  = document.getElementById('logo-uploader');
+  const logoFileInput = document.getElementById('logo-file-input');
+  const logoIdle      = document.getElementById('logo-idle');
+  const logoPreview   = document.getElementById('logo-preview-wrap');
+  const logoThumb     = document.getElementById('logo-thumb');
+  const logoName      = document.getElementById('logo-name');
+  const btnRemoveLogo = document.getElementById('btn-remove-logo');
+  const rngScale      = document.getElementById('rng-logo-scale');
+  const valScale      = document.getElementById('val-logo-scale');
+  const rngOpacity    = document.getElementById('rng-logo-opacity');
+  const valOpacity    = document.getElementById('val-logo-opacity');
+  const posGrid       = document.getElementById('pos-grid');
+  const statusDot     = document.getElementById('logo-status-dot');
+  const statusMsg     = document.getElementById('logo-status-msg');
+  const videoProgress = document.getElementById('logo-video-progress');
+  const logoVpFill    = document.getElementById('logo-vp-fill');
+  const logoVpFrames  = document.getElementById('logo-vp-frames');
+  const logoVpTime    = document.getElementById('logo-vp-time');
+  const btnApply      = document.getElementById('btn-logo-apply');
+  const btnSave       = document.getElementById('btn-logo-save');
+  const btnReset      = document.getElementById('btn-logo-reset');
+
+  // State
+  let mediaFile  = null;  // source image or video
+  let logoImg    = null;  // { img: Image, dataUrl: string, name: string }
+  let logoPos    = 'br';  // tl|tc|tr|ml|mc|mr|bl|bc|br
+  let resultBlob = null;
+  let logoScale   = 100;
+  let logoOpacity = 100;
+
+  // ── Status helpers ──────────────────────────────────────────────────────────
+  function setStatus(type, msg) {
+    statusDot.className = 'status-dot';
+    if (type === 'busy') statusDot.classList.add('busy');
+    else if (type === 'ok') statusDot.classList.add('ok');
+    else if (type === 'err') statusDot.classList.add('err');
+    statusMsg.textContent = msg;
+  }
+
+  function isVideoFile(f) {
+    return (f.type && f.type.startsWith('video/')) ||
+      /\.(mp4|webm|mov|avi|mkv|m4v|ogv)$/i.test(f.name);
+  }
+  function isImageFile(f) {
+    return (f.type && f.type.startsWith('image/')) ||
+      /\.(png|jpe?g|webp|avif|bmp|gif)$/i.test(f.name);
+  }
+  function readDataURL(f) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = rej;
+      r.readAsDataURL(f);
+    });
+  }
+
+  // ── Update apply button state ───────────────────────────────────────────────
+  function updateApplyBtn() {
+    btnApply.disabled = !(mediaFile && logoImg);
+  }
+
+  // ── Media dropzone ──────────────────────────────────────────────────────────
+  function applyMedia(file) {
+    mediaFile = file;
+    lmIdle.classList.add('hidden');
+    lmLoaded.classList.remove('hidden');
+    lmName.textContent = file.name;
+
+    // Show preview in right panel
+    const url = URL.createObjectURL(file);
+    const beforeImg   = document.getElementById('before-img');
+    const beforeVideo = document.getElementById('before-video');
+    const beforeEmpty = document.getElementById('before-empty');
+    const afterImg    = document.getElementById('after-img');
+    const afterVideo  = document.getElementById('after-video');
+    const afterEmpty  = document.getElementById('after-empty');
+
+    // Reset after panel
+    [afterImg, afterVideo].forEach(el => { el.src = ''; el.classList.add('hidden'); });
+    afterEmpty.classList.remove('hidden');
+    resultBlob = null;
+    btnSave.disabled = true;
+
+    if (isVideoFile(file)) {
+      beforeImg.classList.add('hidden');
+      beforeVideo.classList.remove('hidden');
+      beforeEmpty.classList.add('hidden');
+      beforeVideo.src = url;
+    } else {
+      beforeVideo.classList.add('hidden');
+      beforeImg.classList.remove('hidden');
+      beforeEmpty.classList.add('hidden');
+      beforeImg.src = url;
+    }
+
+    setStatus('idle', file.name + ' - San sang');
+    updateApplyBtn();
+  }
+
+  mediaDropEl.addEventListener('click', e => {
+    if (e.target !== btnRemoveLogo && !btnRemoveLogo.contains(e.target)) mediaInput.click();
+  });
+  mediaDropEl.addEventListener('dragover',  e => { e.preventDefault(); mediaDropEl.classList.add('drag-over'); });
+  mediaDropEl.addEventListener('dragleave', () => mediaDropEl.classList.remove('drag-over'));
+  mediaDropEl.addEventListener('drop', e => {
+    e.preventDefault();
+    mediaDropEl.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && (isVideoFile(f) || isImageFile(f))) applyMedia(f);
+  });
+  mediaInput.addEventListener('change', () => {
+    if (mediaInput.files[0]) applyMedia(mediaInput.files[0]);
+  });
+
+  // ── Logo picker ─────────────────────────────────────────────────────────────
+  function applyLogo(dataUrl, name) {
+    const img = new Image();
+    img.onload = () => {
+      logoImg = { img, dataUrl, name };
+      logoThumb.src = dataUrl;
+      logoName.textContent = name;
+      logoIdle.classList.add('hidden');
+      logoPreview.classList.remove('hidden');
+      // Persist
+      try { localStorage.setItem('gemini_logo_tab_logo', JSON.stringify({ dataUrl, name })); } catch (_) {}
+      updateApplyBtn();
+    };
+    img.src = dataUrl;
+  }
+
+  logoUploader.addEventListener('click', e => {
+    if (e.target !== btnRemoveLogo && !btnRemoveLogo.contains(e.target)) logoFileInput.click();
+  });
+  logoUploader.addEventListener('dragover',  e => { e.preventDefault(); logoUploader.classList.add('drag-over'); });
+  logoUploader.addEventListener('dragleave', () => logoUploader.classList.remove('drag-over'));
+  logoUploader.addEventListener('drop', e => {
+    e.preventDefault();
+    logoUploader.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && isImageFile(f)) readDataURL(f).then(u => applyLogo(u, f.name));
+  });
+  logoFileInput.addEventListener('change', () => {
+    const f = logoFileInput.files[0];
+    if (f) readDataURL(f).then(u => applyLogo(u, f.name));
+  });
+  btnRemoveLogo.addEventListener('click', e => {
+    e.stopPropagation();
+    logoImg = null;
+    logoThumb.src = '';
+    logoIdle.classList.remove('hidden');
+    logoPreview.classList.add('hidden');
+    logoFileInput.value = '';
+    try { localStorage.removeItem('gemini_logo_tab_logo'); } catch (_) {}
+    updateApplyBtn();
+  });
+
+  // Restore saved logo
+  try {
+    const saved = localStorage.getItem('gemini_logo_tab_logo');
+    if (saved) {
+      const p = JSON.parse(saved);
+      if (p && p.dataUrl) applyLogo(p.dataUrl, p.name || 'logo.png');
+    }
+  } catch (_) {}
+
+  // ── Sliders ─────────────────────────────────────────────────────────────────
+  rngScale.addEventListener('input', () => {
+    logoScale = parseInt(rngScale.value, 10);
+    valScale.textContent = logoScale + '%';
+  });
+  rngOpacity.addEventListener('input', () => {
+    logoOpacity = parseInt(rngOpacity.value, 10);
+    valOpacity.textContent = logoOpacity + '%';
+  });
+
+  // ── Position grid ───────────────────────────────────────────────────────────
+  posGrid.querySelectorAll('.pos-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      posGrid.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      logoPos = btn.dataset.pos;
+    });
+  });
+
+  // ── Compute logo position from pos code ─────────────────────────────────────
+  function computeLogoRect(W, H, logoNatW, logoNatH, scale, pos) {
+    const margin = Math.round(Math.min(W, H) * 0.04);
+    // Base size = 8% of shorter dimension, scaled by user slider
+    const baseSize = Math.round(Math.min(W, H) * 0.08 * scale / 100);
+    const aspect = logoNatW / logoNatH;
+    let drawW = baseSize;
+    let drawH = Math.round(baseSize / aspect);
+    if (drawH > baseSize) { drawH = baseSize; drawW = Math.round(baseSize * aspect); }
+
+    const positions = {
+      tl: { x: margin,              y: margin },
+      tc: { x: (W - drawW) / 2,     y: margin },
+      tr: { x: W - drawW - margin,  y: margin },
+      ml: { x: margin,              y: (H - drawH) / 2 },
+      mc: { x: (W - drawW) / 2,     y: (H - drawH) / 2 },
+      mr: { x: W - drawW - margin,  y: (H - drawH) / 2 },
+      bl: { x: margin,              y: H - drawH - margin },
+      bc: { x: (W - drawW) / 2,     y: H - drawH - margin },
+      br: { x: W - drawW - margin,  y: H - drawH - margin },
+    };
+    const { x, y } = positions[pos] || positions.br;
+    return { x: Math.round(x), y: Math.round(y), w: drawW, h: drawH };
+  }
+
+  // ── Stamp logo onto canvas ──────────────────────────────────────────────────
+  function stampLogo(canvas, pos, scale, opacity) {
+    if (!logoImg) return;
+    const ctx = canvas.getContext('2d');
+    const { x, y, w, h } = computeLogoRect(
+      canvas.width, canvas.height,
+      logoImg.img.naturalWidth, logoImg.img.naturalHeight,
+      scale, pos
+    );
+    ctx.save();
+    ctx.globalAlpha = opacity / 100;
+    ctx.drawImage(logoImg.img, x, y, w, h);
+    ctx.restore();
+  }
+
+  // ── Apply: image ────────────────────────────────────────────────────────────
+  async function applyLogoToImage() {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth  || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        stampLogo(canvas, logoPos, logoScale, logoOpacity);
+        const isJpeg = /\.jpe?g$/i.test(mediaFile.name) || mediaFile.type === 'image/jpeg';
+        canvas.toBlob(blob => blob ? res(blob) : rej(new Error('Export failed')),
+          isJpeg ? 'image/jpeg' : 'image/png', isJpeg ? 0.95 : undefined);
+      };
+      img.onerror = rej;
+      readDataURL(mediaFile).then(u => { img.src = u; });
+    });
+  }
+
+  // ── Apply: video via FFmpeg ─────────────────────────────────────────────────
+  async function applyLogoToVideoFFmpeg() {
+    // Convert logo to PNG buffer
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width  = logoImg.img.naturalWidth;
+    tempCanvas.height = logoImg.img.naturalHeight;
+    tempCanvas.getContext('2d').drawImage(logoImg.img, 0, 0);
+    const logoPngBlob = await new Promise(r => tempCanvas.toBlob(r, 'image/png'));
+    const logoBuffer  = await logoPngBlob.arrayBuffer();
+
+    // Get video dimensions from element
+    const vid = document.createElement('video');
+    vid.src  = URL.createObjectURL(mediaFile);
+    vid.muted = true;
+    await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = rej; });
+    const W = vid.videoWidth;
+    const H = vid.videoHeight;
+    URL.revokeObjectURL(vid.src);
+
+    const { x, y, w, h } = computeLogoRect(
+      W, H,
+      logoImg.img.naturalWidth, logoImg.img.naturalHeight,
+      logoScale, logoPos
+    );
+
+    const srcBuf = await mediaFile.arrayBuffer();
+    const result = await window.electronAPI.overlayLogoVideo({
+      sourcePath: mediaFile._sourcePath || null,
+      buffer: srcBuf,
+      logoBuffer,
+      logoX: x, logoY: y, logoW: w, logoH: h,
+      opacity: logoOpacity / 100
+    });
+
+    if (!result.success) throw new Error(result.error || 'FFmpeg overlay failed');
+    return new Blob([result.buffer], { type: 'video/mp4' });
+  }
+
+  // ── Frame-by-frame fallback (web / no Electron) ─────────────────────────────
+  async function applyLogoToVideoCanvas() {
+    const srcUrl = URL.createObjectURL(mediaFile);
+    const vid = document.createElement('video');
+    vid.src = srcUrl; vid.muted = true; vid.playsInline = true; vid.preload = 'auto';
+    await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = rej; });
+
+    const W = vid.videoWidth, H = vid.videoHeight;
+    const duration = vid.duration;
+    const fps = 30;
+    const totalFrames = Math.max(1, Math.ceil(duration * fps));
+
+    const muxer = new window.SimpleWebMMuxer({ width: W, height: H, codec: 'V_VP9', duration });
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: e => console.error(e)
+    });
+    const cfg = { codec: 'vp09.00.10.08', width: W, height: H, bitrate: 16_000_000, framerate: fps };
+    if (!(await VideoEncoder.isConfigSupported(cfg)).supported) { cfg.codec = 'vp8'; muxer.codec = 'V_VP8'; }
+    encoder.configure(cfg);
+
+    const fc = document.createElement('canvas'); fc.width = W; fc.height = H;
+    const ctx = fc.getContext('2d', { willReadFrequently: true });
+    const fdu = Math.round(1_000_000 / fps);
+
+    for (let i = 0; i < totalFrames; i++) {
+      vid.currentTime = Math.min(i / fps, Math.max(0, duration - 0.001));
+      await new Promise(r => { vid.onseeked = r; });
+      ctx.drawImage(vid, 0, 0, W, H);
+      stampLogo(fc, logoPos, logoScale, logoOpacity);
+      const vf = new VideoFrame(fc, { timestamp: i * fdu, duration: fdu });
+      encoder.encode(vf, { keyFrame: i % 30 === 0 });
+      vf.close();
+
+      const pct = Math.round(((i + 1) / totalFrames) * 100);
+      logoVpFill.style.width = pct + '%';
+      logoVpFill.style.animation = 'none';
+      logoVpFrames.textContent = (i + 1) + ' / ' + totalFrames + ' frames';
+      if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+    await encoder.flush();
+    encoder.close();
+    URL.revokeObjectURL(srcUrl);
+    return muxer.finalize();
+  }
+
+  // ── Main apply handler ──────────────────────────────────────────────────────
+  btnApply.addEventListener('click', async () => {
+    if (!mediaFile || !logoImg) return;
+
+    btnApply.disabled = true;
+    btnSave.disabled  = true;
+    resultBlob = null;
+    videoProgress.classList.remove('hidden');
+    logoVpFill.style.width = '30%';
+    logoVpFill.style.animation = 'pulse-bar 1.2s ease infinite';
+    logoVpFrames.textContent = 'Dang xu ly...';
+    logoVpTime.textContent   = 'Uoc tinh: vai giay';
+    setStatus('busy', 'Dang chen logo...');
+
+    try {
+      let blob;
+      if (isVideoFile(mediaFile)) {
+        if (isElectron && window.electronAPI.overlayLogoVideo) {
+          setStatus('busy', 'FFmpeg: chen logo 1 lan chay...');
+          blob = await applyLogoToVideoFFmpeg();
+        } else {
+          setStatus('busy', 'Xu ly tung frame...');
+          blob = await applyLogoToVideoCanvas();
+        }
+      } else {
+        blob = await applyLogoToImage();
+      }
+
+      resultBlob = blob;
+
+      // Show in after panel
+      const url = URL.createObjectURL(blob);
+      const afterImg   = document.getElementById('after-img');
+      const afterVideo = document.getElementById('after-video');
+      const afterEmpty = document.getElementById('after-empty');
+      afterEmpty.classList.add('hidden');
+      if (isVideoFile(mediaFile)) {
+        afterImg.classList.add('hidden');
+        afterVideo.classList.remove('hidden');
+        afterVideo.src = url;
+      } else {
+        afterVideo.classList.add('hidden');
+        afterImg.classList.remove('hidden');
+        afterImg.src = url;
+      }
+
+      videoProgress.classList.add('hidden');
+      setStatus('ok', 'Da chen logo thanh cong!');
+      btnSave.disabled  = false;
+      btnApply.disabled = false;
+
+    } catch (err) {
+      videoProgress.classList.add('hidden');
+      setStatus('err', 'Loi: ' + err.message);
+      console.error(err);
+      btnApply.disabled = false;
+    }
+  });
+
+  // ── Save ────────────────────────────────────────────────────────────────────
+  btnSave.addEventListener('click', async () => {
+    if (!resultBlob) return;
+    const ext  = isVideoFile(mediaFile) ? 'mp4' : /\.jpe?g$/i.test(mediaFile.name) ? 'jpg' : 'png';
+    const name = mediaFile.name.replace(/\.[^.]+$/, '') + '_logo.' + ext;
+
+    if (isElectron) {
+      const r = await window.electronAPI.saveFile({ defaultName: name, mimeType: resultBlob.type });
+      if (!r.canceled && r.filePath) {
+        const buf = await resultBlob.arrayBuffer();
+        await window.electronAPI.writeFile(r.filePath, buf);
+        setStatus('ok', 'Da luu: ' + r.filePath.split(/[\\/]/).pop());
+      }
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(resultBlob);
+      a.download = name;
+      a.click();
+    }
+  });
+
+  // ── Reset ────────────────────────────────────────────────────────────────────
+  btnReset.addEventListener('click', () => {
+    mediaFile = null; resultBlob = null;
+    lmIdle.classList.remove('hidden');
+    lmLoaded.classList.add('hidden');
+    lmName.textContent = '';
+    mediaInput.value = '';
+    ['before-img','before-video','after-img','after-video'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.src = ''; el.classList.add('hidden'); }
+    });
+    ['before-empty','after-empty'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('hidden');
+    });
+    videoProgress.classList.add('hidden');
+    setStatus('idle', 'Chon anh/video va logo de bat dau');
+    btnApply.disabled = true;
+    btnSave.disabled  = true;
+  });
+
 })();
