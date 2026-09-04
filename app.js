@@ -80,15 +80,17 @@ window.addEventListener('paste', e => {
   const viewSplit  = document.getElementById('view-split');
   const viewBefore = document.getElementById('view-before');
   const viewAfter  = document.getElementById('view-after');
-  const viewWipe   = document.getElementById('view-wipe');
-  const wipeRange  = document.getElementById('wipe-range');
-  const wipeHandle = document.getElementById('wipe-handle');
+  const viewWipe        = document.getElementById('view-wipe');
+  const wipeContainer   = document.getElementById('wipe-container');
+  const wipeHandle      = document.getElementById('wipe-handle');
+  const wipeLayerBefore = document.getElementById('wipe-layer-before');
   const wipeClipLayer   = document.getElementById('wipe-layer-after');
   const wipeImgBefore   = document.getElementById('wipe-img-before');
   const wipeImgAfter    = document.getElementById('wipe-img-after');
   const wipeVideoBefore = document.getElementById('wipe-video-before');
   const wipeVideoAfter  = document.getElementById('wipe-video-after');
   const wipeEmpty       = document.getElementById('wipe-empty');
+  const wipeRange       = document.getElementById('wipe-range');
 
   // ── State ──────────────────────────────────────────────────────────────────
   let fileQueue      = [];
@@ -792,10 +794,57 @@ window.addEventListener('paste', e => {
     }
   }
 
-  function setWipePosition(pct) {
-    if (wipeHandle) wipeHandle.style.left = `${pct}%`;
-    if (wipeClipLayer) wipeClipLayer.style.clipPath = `polygon(${pct}% 0, 100% 0, 100% 100%, ${pct}% 100%)`;
+  let isWipeDragging = false;
+
+  function updateWipePositionFromClientX(clientX) {
+    if (!wipeContainer) return;
+    const rect = wipeContainer.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const offsetX = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const pct = Math.round((offsetX / rect.width) * 100);
+    setWipePosition(pct);
   }
+
+  function setWipePosition(pct) {
+    pct = Math.max(0, Math.min(100, pct));
+    if (wipeHandle) wipeHandle.style.left = `${pct}%`;
+    if (wipeLayerBefore) wipeLayerBefore.style.clipPath = `polygon(0 0, ${pct}% 0, ${pct}% 100%, 0 100%)`;
+    if (wipeClipLayer) wipeClipLayer.style.clipPath = `polygon(${pct}% 0, 100% 0, 100% 100%, ${pct}% 100%)`;
+    if (wipeRange) wipeRange.value = pct;
+  }
+
+  wipeContainer?.addEventListener('mousedown', e => {
+    e.preventDefault();
+    isWipeDragging = true;
+    updateWipePositionFromClientX(e.clientX);
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (isWipeDragging) {
+      updateWipePositionFromClientX(e.clientX);
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    isWipeDragging = false;
+  });
+
+  wipeContainer?.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      isWipeDragging = true;
+      updateWipePositionFromClientX(e.touches[0].clientX);
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchmove', e => {
+    if (isWipeDragging && e.touches.length === 1) {
+      updateWipePositionFromClientX(e.touches[0].clientX);
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchend', () => {
+    isWipeDragging = false;
+  });
 
   wipeRange?.addEventListener('input', e => {
     setWipePosition(e.target.value);
@@ -1124,13 +1173,18 @@ window.addEventListener('paste', e => {
     [mtabRemove, mtabLogo, mtabBgRemove, mtabConvert].forEach(b => b?.classList.remove('active'));
     [tcRemove, tcLogo, tcBgRemove, tcConvert].forEach(c => c?.classList.add('hidden'));
 
-    // Toggle checkerboard pattern on after-box only in bgremove tab
+    // Toggle checkerboard pattern on after-box and wipe-container only in bgremove tab
     if (tab === 'bgremove') {
       boxAfter?.classList.add('checkerboard-bg');
       viewAfter?.classList.add('checkerboard-bg');
+      wipeContainer?.classList.add('checkerboard-bg');
     } else {
       boxAfter?.classList.remove('checkerboard-bg');
       viewAfter?.classList.remove('checkerboard-bg');
+      wipeContainer?.classList.remove('checkerboard-bg');
+    }
+    if (tabWipe?.classList.contains('active')) {
+      updateWipeMedia();
     }
 
     if (tab === 'logo') {
