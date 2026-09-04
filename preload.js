@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeFile: (filePath, buffer) => ipcRenderer.invoke('write-file', { filePath, buffer }),
   showInFolder: (filePath) => ipcRenderer.invoke('show-in-folder', filePath),
   processVideo: (options) => ipcRenderer.invoke('process-video', options),
+  overlayLogoVideo: (options) => ipcRenderer.invoke('overlay-logo-video', options),
 
   // Listen for "Open Image" triggered from native menu
   onOpenFiles: (callback) => ipcRenderer.on('open-files', (_event, filePaths) => callback(filePaths)),

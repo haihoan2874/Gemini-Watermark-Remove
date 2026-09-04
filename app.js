@@ -1,11 +1,11 @@
-/**
- * app.js — Main renderer logic
+﻿/**
+ * app.js â€” Main renderer logic
  * Handles drag/drop, processing pipeline, custom logo overlay, tab switching, download.
  */
 (() => {
   const isElectron = typeof window.electronAPI !== 'undefined';
 
-  // ── DOM Elements ───────────────────────────────────────────────────────────
+  // â”€â”€ DOM Elements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const dropZone     = document.getElementById('drop-zone');
   const fileInput    = document.getElementById('file-input');
   const dzIdle       = document.getElementById('dz-idle');
@@ -71,7 +71,7 @@
   const viewBefore = document.getElementById('view-before');
   const viewAfter  = document.getElementById('view-after');
 
-  // ── State ──────────────────────────────────────────────────────────────────
+  // â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let fileQueue      = [];
   let processedBlobs = [];
   let cleanBlob      = null;
@@ -88,7 +88,7 @@
     mode: 'clean-and-overlay' // 'clean-and-overlay' | 'overlay-only'
   };
 
-  // ── Native menu (Electron) ────────────────────────────────────────────────
+  // â”€â”€ Native menu (Electron) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isElectron) {
     window.electronAPI.onOpenFiles((paths) => {
       Promise.all(paths.map(p => pathToFile(p).then(f => { f._sourcePath = p; return f; }))).then(handleFiles);
@@ -122,7 +122,7 @@
       /\.(png|jpe?g|webp|avif|bmp|gif)$/i.test(file.name);
   }
 
-  // ── Custom Logo Management & LocalStorage ─────────────────────────────────
+  // â”€â”€ Custom Logo Management & LocalStorage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function initCustomLogo() {
     try {
       const savedSettings = localStorage.getItem('gemini_logo_settings');
@@ -335,7 +335,7 @@
 
   initCustomLogo();
 
-  // ── Drag & drop ───────────────────────────────────────────────────────────
+  // â”€â”€ Drag & drop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
   dropZone.addEventListener('drop', e => {
@@ -358,7 +358,7 @@
     fileInput.value = '';
   });
 
-  // ── File loading ──────────────────────────────────────────────────────────
+  // â”€â”€ File loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function handleFiles(files) {
     if (!files || files.length === 0) return;
 
@@ -387,7 +387,7 @@
     dzLoaded.classList.remove('hidden');
     loadedName.textContent = files.length === 1
       ? files[0].name
-      : `${files.length} file (${files.filter(isVideoFile).length} video, ${files.filter(f => !isVideoFile(f)).length} ảnh)`;
+      : `${files.length} file (${files.filter(isVideoFile).length} video, ${files.filter(f => !isVideoFile(f)).length} áº£nh)`;
 
     if (files.length > 1) {
       queue.classList.remove('hidden');
@@ -396,8 +396,8 @@
         const li = document.createElement('li');
         li.id = `qi-${i}`;
         if (i === 0) li.classList.add('active');
-        const icon = isVideoFile(f) ? '🎬' : '🖼️';
-        li.innerHTML = `<span class="q-icon">${icon}</span> <span class="q-name">${f.name}</span><span class="q-status" id="qs-${i}">—</span>`;
+        const icon = isVideoFile(f) ? 'ðŸŽ¬' : 'ðŸ–¼ï¸';
+        li.innerHTML = `<span class="q-icon">${icon}</span> <span class="q-name">${f.name}</span><span class="q-status" id="qs-${i}">â€”</span>`;
 
         li.addEventListener('click', () => {
           document.querySelectorAll('#queue-list li').forEach(el => el.classList.remove('active'));
@@ -428,18 +428,18 @@
 
       const vCount = files.filter(isVideoFile).length;
       const iCount = files.length - vCount;
-      let labelStr = `Xử lý tất cả (${files.length})`;
-      if (vCount === files.length) labelStr = `Xử lý ${files.length} video`;
-      else if (iCount === files.length) labelStr = `Xử lý ${files.length} ảnh`;
+      let labelStr = `Xá»­ lÃ½ táº¥t cáº£ (${files.length})`;
+      if (vCount === files.length) labelStr = `Xá»­ lÃ½ ${files.length} video`;
+      else if (iCount === files.length) labelStr = `Xá»­ lÃ½ ${files.length} áº£nh`;
 
       btnProcess.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> ${labelStr}`;
       btnSaveAll.classList.add('hidden');
       setQueueProgress(0, files.length);
     } else {
       queue.classList.add('hidden');
-      const label = isVideoMode ? 'Xóa Watermark Video' : 'Xóa Watermark';
+      const label = isVideoMode ? 'XÃ³a Watermark Video' : 'XÃ³a Watermark';
       btnProcess.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> ${label}`;
-      btnSave.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg> ${isVideoMode ? 'Lưu video' : 'Lưu ảnh'}`;
+      btnSave.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg> ${isVideoMode ? 'LÆ°u video' : 'LÆ°u áº£nh'}`;
       btnSaveAll.classList.add('hidden');
     }
 
@@ -448,12 +448,12 @@
     btnSave.disabled = true;
     btnReset.classList.remove('hidden');
     const hint = isVideoMode
-      ? 'Video sẵn sàng — nhấn "Xóa Watermark Video"'
-      : (files.length > 1 ? 'Sẵn sàng — nhấn nút xử lý tất cả' : 'Sẵn sàng — nhấn "Xóa Watermark"');
+      ? 'Video sáºµn sÃ ng â€” nháº¥n "XÃ³a Watermark Video"'
+      : (files.length > 1 ? 'Sáºµn sÃ ng â€” nháº¥n nÃºt xá»­ lÃ½ táº¥t cáº£' : 'Sáºµn sÃ ng â€” nháº¥n "XÃ³a Watermark"');
     setStatus('idle', hint);
   }
 
-  // ── Process ───────────────────────────────────────────────────────────────
+  // â”€â”€ Process â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   btnProcess.addEventListener('click', async () => {
     if (fileQueue.length > 1) await processBatch(fileQueue);
     else if (isVideoMode) await processVideoFile(currentFile);
@@ -462,7 +462,7 @@
 
   async function processSingle(file) {
     btnProcess.disabled = true;
-    setStatus('busy', 'Đang xử lý...');
+    setStatus('busy', 'Äang xá»­ lÃ½...');
 
     try {
       const { detection, blob } = await processImage(file);
@@ -472,11 +472,11 @@
       setAfterImage(url);
 
       if (logoSettings.enabled && customLogo) {
-        setStatus('ok', '✓ Đã xử lý & chèn logo thương hiệu');
+        setStatus('ok', 'âœ“ ÄÃ£ xá»­ lÃ½ & chÃ¨n logo thÆ°Æ¡ng hiá»‡u');
       } else if (detection.found) {
-        setStatus('ok', '✓ Watermark đã được xử lý');
+        setStatus('ok', 'âœ“ Watermark Ä‘Ã£ Ä‘Æ°á»£c xá»­ lÃ½');
       } else {
-        setStatus('warn', 'Không tìm thấy watermark — ảnh giữ nguyên');
+        setStatus('warn', 'KhÃ´ng tÃ¬m tháº¥y watermark â€” áº£nh giá»¯ nguyÃªn');
       }
 
       btnSave.disabled = false;
@@ -485,7 +485,7 @@
         overwriteWrap.classList.remove('hidden');
       }
     } catch (err) {
-      setStatus('err', 'Lỗi: ' + err.message);
+      setStatus('err', 'Lá»—i: ' + err.message);
     }
 
     btnProcess.disabled = false;
@@ -503,7 +503,7 @@
       if (signal.aborted) break;
       const f = files[i];
       const qs = document.getElementById(`qs-${i}`);
-      if (qs) qs.textContent = '⚙️';
+      if (qs) qs.textContent = 'âš™ï¸';
 
       // Highlight active file in queue
       document.querySelectorAll('#queue-list li').forEach(el => el.classList.remove('active'));
@@ -516,7 +516,7 @@
 
       try {
         if (isVideoMode) {
-          setStatus('busy', `Đang xử lý video ${i+1}/${files.length}: ${f.name}`);
+          setStatus('busy', `Äang xá»­ lÃ½ video ${i+1}/${files.length}: ${f.name}`);
           setBeforeVideo(f);
           clearBeforeImage();
           clearAfterImage();
@@ -532,9 +532,9 @@
           });
           cleanBlob = blob;
           setAfterVideo(blob);
-          if (qs) qs.textContent = '✓';
+          if (qs) qs.textContent = 'âœ“';
         } else {
-          setStatus('busy', `Đang xử lý ảnh ${i+1}/${files.length}: ${f.name}`);
+          setStatus('busy', `Äang xá»­ lÃ½ áº£nh ${i+1}/${files.length}: ${f.name}`);
           videoProgressEl.classList.add('hidden');
           const dataUrl = await readDataURL(f);
           setBeforeImage(dataUrl);
@@ -551,21 +551,21 @@
           });
           cleanBlob = blob;
           setAfterImage(URL.createObjectURL(blob));
-          if (qs) qs.textContent = detection.found ? '✓' : '—';
+          if (qs) qs.textContent = detection.found ? 'âœ“' : 'â€”';
         }
       } catch (err) {
         if (err.name === 'AbortError') {
-          if (qs) qs.textContent = '—';
+          if (qs) qs.textContent = 'â€”';
           break;
         }
-        console.error(`Lỗi xử lý file ${f.name}:`, err);
-        if (qs) qs.textContent = '✗';
+        console.error(`Lá»—i xá»­ lÃ½ file ${f.name}:`, err);
+        if (qs) qs.textContent = 'âœ—';
       }
     }
 
     videoProgressEl.classList.add('hidden');
     setQueueProgress(files.length, files.length);
-    setStatus('ok', `✓ Hoàn tất ${processedBlobs.length}/${files.length} file`);
+    setStatus('ok', `âœ“ HoÃ n táº¥t ${processedBlobs.length}/${files.length} file`);
     btnSave.disabled = processedBlobs.length === 0;
     btnSaveAll.disabled = processedBlobs.length === 0;
     if (processedBlobs.length > 0) {
@@ -580,7 +580,7 @@
     }
   }
 
-  // ── Processing pipeline ───────────────────────────────────────────────────
+  // â”€â”€ Processing pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function processImage(file) {
     return new Promise((resolve, reject) => {
       readDataURL(file).then(dataUrl => {
@@ -647,13 +647,13 @@
             finalCanvas.toBlob(blob => resolve({ detection, blob }), mime, q);
           } catch (e) { reject(e); }
         };
-        img.onerror = () => reject(new Error('Không đọc được ảnh'));
+        img.onerror = () => reject(new Error('KhÃ´ng Ä‘á»c Ä‘Æ°á»£c áº£nh'));
         img.src = dataUrl;
       });
     });
   }
 
-  // ── Video processing pipeline ─────────────────────────────────────────────
+  // â”€â”€ Video processing pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function processVideoFile(file) {
     btnProcess.disabled = true;
     btnSave.disabled = true;
@@ -661,23 +661,23 @@
     videoAbortCtrl = new AbortController();
     const signal = videoAbortCtrl.signal;
 
-    setStatus('busy', 'Đang phân tích video...');
+    setStatus('busy', 'Äang phÃ¢n tÃ­ch video...');
 
     try {
       const blob = await renderVideoWithoutWatermark(file, signal);
       cleanBlob = blob;
       setAfterVideo(blob);
       if (logoSettings.enabled && customLogo) {
-        setStatus('ok', '✓ Watermark video đã được xóa & chèn logo thương hiệu');
+        setStatus('ok', 'âœ“ Watermark video Ä‘Ã£ Ä‘Æ°á»£c xÃ³a & chÃ¨n logo thÆ°Æ¡ng hiá»‡u');
       } else {
-        setStatus('ok', '✓ Watermark video đã được xóa');
+        setStatus('ok', 'âœ“ Watermark video Ä‘Ã£ Ä‘Æ°á»£c xÃ³a');
       }
       btnSave.disabled = false;
     } catch (err) {
       if (err.name === 'AbortError') {
-        setStatus('warn', 'Đã hủy xử lý video');
+        setStatus('warn', 'ÄÃ£ há»§y xá»­ lÃ½ video');
       } else {
-        setStatus('err', 'Lỗi xử lý video: ' + err.message);
+        setStatus('err', 'Lá»—i xá»­ lÃ½ video: ' + err.message);
         console.error(err);
       }
     } finally {
@@ -698,7 +698,7 @@
 
     await new Promise((res, rej) => {
       vid.onloadedmetadata = res;
-      vid.onerror = () => rej(new Error('Không đọc được video'));
+      vid.onerror = () => rej(new Error('KhÃ´ng Ä‘á»c Ä‘Æ°á»£c video'));
     });
 
     const W = vid.videoWidth;
@@ -708,8 +708,102 @@
     const frameDurationMicros = Math.round(1_000_000 / fps);
     const totalFrames = Math.max(1, Math.ceil(duration * fps));
 
+    const isOverlayOnly = logoSettings.enabled && customLogo && (logoSettings.mode === 'overlay-only');
+
+    // â”€â”€ FAST PATH: FFmpeg single-pass overlay (Electron + overlay-only mode) â”€â”€
+    if (isElectron && isOverlayOnly && customLogo && window.electronAPI.overlayLogoVideo) {
+      setStatus('busy', 'âš¡ Äang chÃ¨n logo báº±ng FFmpeg (nhanh)...');
+
+      // 2a. Detect watermark position from frame 0 for accurate placement
+      const detectCanvas = document.createElement('canvas');
+      detectCanvas.width = W;
+      detectCanvas.height = H;
+      const detectCtx = detectCanvas.getContext('2d', { willReadFrequently: true });
+
+      vid.currentTime = 0;
+      await new Promise(r => { vid.onseeked = r; });
+      detectCtx.drawImage(vid, 0, 0, W, H);
+
+      let logoX, logoY, logoW, logoH;
+      try {
+        const engine = await GeminiWatermarkRemover.createWatermarkEngine();
+        const result = await engine.removeWatermarkFromImage(detectCanvas);
+        const m = result?.meta || result;
+        if (m && m.x != null && m.width > 0) {
+          // Use detected watermark bounding box
+          logoW = Math.round(m.width  * (logoSettings.scale / 100));
+          logoH = Math.round(m.height * (logoSettings.scale / 100));
+          // Center logo over watermark center
+          const cx = m.x + m.width  / 2;
+          const cy = m.y + m.height / 2;
+          logoX = Math.round(cx - logoW / 2);
+          logoY = Math.round(cy - logoH / 2);
+        } else {
+          throw new Error('no meta');
+        }
+      } catch (_) {
+        // Fallback: bottom-right corner matching Gemini default position
+        const size = (W > 1920 || H > 1080) ? 120 : (W > 1280 || H > 720) ? 96 : 64;
+        const margin = Math.round(size * 0.4);
+        logoW = Math.round(size * (logoSettings.scale / 100));
+        logoH = Math.round(size * (logoSettings.scale / 100));
+        logoX = W - logoW - margin;
+        logoY = H - logoH - margin;
+      }
+
+      // Preserve logo aspect ratio
+      const natW = customLogo.img.naturalWidth || customLogo.img.width || logoW;
+      const natH = customLogo.img.naturalHeight || customLogo.img.height || logoH;
+      const aspect = natW / natH;
+      if (aspect >= 1) {
+        logoH = Math.round(logoW / aspect);
+      } else {
+        logoW = Math.round(logoH * aspect);
+      }
+
+      // Convert logo image to PNG buffer
+      const logoCanvas = document.createElement('canvas');
+      logoCanvas.width = natW;
+      logoCanvas.height = natH;
+      logoCanvas.getContext('2d').drawImage(customLogo.img, 0, 0);
+      const logoPngBlob = await new Promise(r => logoCanvas.toBlob(r, 'image/png'));
+      const logoBuffer = await logoPngBlob.arrayBuffer();
+
+      // Read source video
+      const srcBuffer = await file.arrayBuffer();
+      const opacity = (logoSettings.opacity ?? 100) / 100;
+
+      vpFill.style.width = '30%';
+      vpFrames.textContent = 'FFmpeg Ä‘ang xá»­ lÃ½...';
+      vpTime.textContent = 'Æ¯á»›c tÃ­nh cÃ²n: vÃ i giÃ¢y';
+
+      const result = await window.electronAPI.overlayLogoVideo({
+        sourcePath: file._sourcePath || null,
+        buffer: srcBuffer,
+        logoBuffer,
+        logoX,
+        logoY,
+        logoW,
+        logoH,
+        opacity
+      });
+
+      URL.revokeObjectURL(srcUrl);
+      vpFill.style.width = '100%';
+      vpFrames.textContent = `HoÃ n táº¥t (FFmpeg)`;
+      vpTime.textContent = 'HoÃ n táº¥t!';
+
+      if (!result.success) {
+        throw new Error(result.error || 'FFmpeg overlay tháº¥t báº¡i');
+      }
+
+      return new Blob([result.buffer], { type: 'video/mp4' });
+    }
+
+    // â”€â”€ NORMAL PATH: frame-by-frame (remove watermark or web mode) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
     // 2. Pre-warm SDK engine and alpha maps
-    setStatus('busy', 'Đang khởi tạo engine Gemini SDK...');
+    setStatus('busy', 'Äang khá»Ÿi táº¡o engine Gemini SDK...');
     const engine = await GeminiWatermarkRemover.createWatermarkEngine();
     await Promise.all([
       engine.getAlphaMap(48),
@@ -727,7 +821,7 @@
     const frameCtx = frameCanvas.getContext('2d', { willReadFrequently: true });
 
     // 4. WebCodecs VideoEncoder setup
-    setStatus('busy', 'Đang xóa logo từng khung hình chuẩn xác...');
+    setStatus('busy', 'Äang xÃ³a logo tá»«ng khung hÃ¬nh chuáº©n xÃ¡c...');
     const startTime = Date.now();
 
     const muxer = new window.SimpleWebMMuxer({
@@ -765,10 +859,22 @@
 
     encoder.configure(config);
 
-    // 5. Deterministic Frame-by-Frame Processing (0% dropped frames, 100% clean logo removal)
+    // 5. Detect watermark from frame 0 and cache for entire video
     let cachedVideoMeta = null;
-    const isOverlayOnly = logoSettings.enabled && customLogo && (logoSettings.mode === 'overlay-only');
+    {
+      vid.currentTime = 0;
+      await new Promise(r => { vid.onseeked = r; });
+      frameCtx.drawImage(vid, 0, 0, W, H);
+      try {
+        const probe = await engine.removeWatermarkFromImage(frameCanvas);
+        const m = probe?.meta || probe;
+        if (m && m.x != null && m.width > 0) {
+          cachedVideoMeta = { x: m.x, y: m.y, width: m.width, height: m.height };
+        }
+      } catch (_) {}
+    }
 
+    // 6. Frame-by-frame processing
     for (let i = 0; i < totalFrames; i++) {
       if (signal.aborted) {
         try { encoder.close(); } catch (_) {}
@@ -777,7 +883,7 @@
       }
 
       if (encodeError) {
-        throw new Error('Lỗi mã hóa: ' + encodeError.message);
+        throw new Error('Lá»—i mÃ£ hÃ³a: ' + encodeError.message);
       }
 
       // Seek to exact frame position
@@ -796,7 +902,7 @@
         cleanCanvas = await engine.removeWatermarkFromImage(frameCanvas);
       }
 
-      // Overlay custom logo if enabled
+      // Overlay custom logo at exact watermark position
       if (logoSettings.enabled && customLogo) {
         overlayCustomLogo(cleanCanvas, cachedVideoMeta);
       }
@@ -818,7 +924,7 @@
 
       const elapsed = (Date.now() - startTime) / 1000;
       const eta = i > 2 ? Math.max(0, Math.round((elapsed / ((i + 1) / totalFrames)) - elapsed)) : '--';
-      vpTime.textContent = `Ước tính còn: ${eta === '--' ? '--' : eta + 's'}`;
+      vpTime.textContent = `Æ¯á»›c tÃ­nh cÃ²n: ${eta === '--' ? '--' : eta + 's'}`;
 
       if (i % 5 === 0) await sleep(0);
     }
@@ -829,13 +935,13 @@
 
     vpFill.style.width = '100%';
     vpFrames.textContent = `${totalFrames} / ${totalFrames} frames (100%)`;
-    vpTime.textContent = 'Hoàn tất!';
+    vpTime.textContent = 'HoÃ n táº¥t!';
 
     return muxer.finalize();
   }
 
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   btnSave.addEventListener('click', async () => {
     if (!cleanBlob) return;
 
@@ -844,9 +950,9 @@
       const buf = await cleanBlob.arrayBuffer();
       const result = await window.electronAPI.writeFile(currentFile._sourcePath, buf);
       if (result.success) {
-        setStatus('ok', `✓ Đã ghi đè: ${currentFile._sourcePath.split(/[\\/]/).pop()}`);
+        setStatus('ok', `âœ“ ÄÃ£ ghi Ä‘Ã¨: ${currentFile._sourcePath.split(/[\\/]/).pop()}`);
       } else {
-        setStatus('err', 'Ghi đè thất bại: ' + result.error);
+        setStatus('err', 'Ghi Ä‘Ã¨ tháº¥t báº¡i: ' + result.error);
       }
       return;
     }
@@ -866,10 +972,10 @@
   btnSaveAll.addEventListener('click', async () => {
     if (!processedBlobs.length) return;
     btnSaveAll.disabled = true;
-    btnSaveAll.textContent = 'Đang lưu...';
+    btnSaveAll.textContent = 'Äang lÆ°u...';
 
     try {
-      // Overwrite mode: ghi đè thẳng vào file gốc
+      // Overwrite mode: ghi Ä‘Ã¨ tháº³ng vÃ o file gá»‘c
       if (isElectron && chkOverwrite.checked) {
         let ok = 0;
         for (const { sourcePath, blob } of processedBlobs) {
@@ -878,7 +984,7 @@
           const result = await window.electronAPI.writeFile(sourcePath, buf);
           if (result.success) ok++;
         }
-        setStatus('ok', `✓ Đã ghi đè ${ok} file gốc`);
+        setStatus('ok', `âœ“ ÄÃ£ ghi Ä‘Ã¨ ${ok} file gá»‘c`);
       } else if (isElectron) {
         const res = await window.electronAPI.selectFolder();
         if (!res.canceled && res.filePaths.length > 0) {
@@ -894,7 +1000,7 @@
             const buf = await item.blob.arrayBuffer();
             await window.electronAPI.writeFile(filePath, buf);
           }
-          setStatus('ok', `✓ Đã lưu ${processedBlobs.length} file vào thư mục`);
+          setStatus('ok', `âœ“ ÄÃ£ lÆ°u ${processedBlobs.length} file vÃ o thÆ° má»¥c`);
           window.electronAPI.showInFolder(folder);
         }
       } else {
@@ -912,10 +1018,10 @@
           URL.revokeObjectURL(url);
         }
       }
-    } catch (e) { setStatus('err', 'Lỗi lưu file: ' + e.message); }
+    } catch (e) { setStatus('err', 'Lá»—i lÆ°u file: ' + e.message); }
 
     btnSaveAll.disabled = false;
-    btnSaveAll.textContent = 'Tải tất cả';
+    btnSaveAll.textContent = 'Táº£i táº¥t cáº£';
   });
 
   async function saveBlob(blob, defaultName, isZip = false) {
@@ -927,10 +1033,10 @@
       const buf = await blob.arrayBuffer();
       const result = await window.electronAPI.writeFile(res.filePath, buf);
       if (result.success) {
-        setStatus('ok', `✓ Đã lưu: ${res.filePath.split(/[\\/]/).pop()}`);
+        setStatus('ok', `âœ“ ÄÃ£ lÆ°u: ${res.filePath.split(/[\\/]/).pop()}`);
         window.electronAPI.showInFolder(res.filePath);
       } else {
-        setStatus('err', 'Không lưu được: ' + result.error);
+        setStatus('err', 'KhÃ´ng lÆ°u Ä‘Æ°á»£c: ' + result.error);
       }
     } else {
       const url = URL.createObjectURL(blob);
@@ -939,7 +1045,7 @@
     }
   }
 
-  // ── Reset ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Reset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   btnReset.addEventListener('click', () => {
     // Cancel any in-progress video processing
     if (videoAbortCtrl) { videoAbortCtrl.abort(); videoAbortCtrl = null; }
@@ -968,10 +1074,10 @@
     beforeEmpty.classList.remove('hidden');
     beforeEmpty2.classList.remove('hidden');
 
-    setStatus('idle', 'Chờ ảnh hoặc video...');
+    setStatus('idle', 'Chá» áº£nh hoáº·c video...');
   });
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function switchTab(active) {
     [tabSplit, tabBefore, tabAfter].forEach(t => { t.classList.remove('active'); t.setAttribute('aria-pressed', 'false'); });
     [viewSplit, viewBefore, viewAfter].forEach(v => v.classList.add('hidden'));
@@ -984,7 +1090,7 @@
   tabBefore.addEventListener('click', () => switchTab({ btn: tabBefore, view: viewBefore }));
   tabAfter.addEventListener('click',  () => switchTab({ btn: tabAfter,  view: viewAfter }));
 
-  // ── Image helpers ─────────────────────────────────────────────────────────
+  // â”€â”€ Image helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function setBeforeImage(url) {
     [beforeImg, beforeImg2].forEach(img => {
       img.src = url;
@@ -1016,7 +1122,7 @@
     afterEmpty2.classList.remove('hidden');
   }
 
-  // ── Video helpers ──────────────────────────────────────────────────────────
+  // â”€â”€ Video helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function setBeforeVideo(file) {
     const url = URL.createObjectURL(file);
     [beforeVideo, beforeVideo2].forEach(v => {
@@ -1053,7 +1159,7 @@
     afterEmpty2.classList.remove('hidden');
   }
 
-  // ── Status ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function setStatus(type, msg) {
     statusMsg.textContent = msg;
     statusDot.className = 'status-dot';
@@ -1069,7 +1175,7 @@
     qProgressTxt.textContent = `${done} / ${total}`;
   }
 
-  // ── Utilities ──────────────────────────────────────────────────────────────
+  // â”€â”€ Utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function readDataURL(file) {
     return new Promise((res, rej) => {
       const r = new FileReader();
@@ -1086,7 +1192,7 @@
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  // ── Sync Before/After Video Controls ────────────────────────────────────────
+  // â”€â”€ Sync Before/After Video Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function setupVideoSync(v1, v2) {
     if (!v1 || !v2) return;
     let isSyncing = false;

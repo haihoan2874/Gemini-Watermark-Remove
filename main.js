@@ -162,6 +162,81 @@ ipcMain.handle('show-in-folder', async (event, filePath) => {
   shell.showItemInFolder(filePath);
 });
 
+// ── IPC: Overlay logo onto video using FFmpeg (fast, single-pass) ───────────
+ipcMain.handle('overlay-logo-video', async (event, { sourcePath, buffer, logoBuffer, logoX, logoY, logoW, logoH, opacity }) => {
+  const os = require('os');
+  const fs = require('fs');
+  const { spawn } = require('child_process');
+  const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+  const ffmpegPath = ffmpegInstaller.path;
+
+  const tmpDir = os.tmpdir();
+  const ts = Date.now();
+
+  // Write logo PNG to temp file
+  const logoPath = path.join(tmpDir, `gemini_logo_${ts}.png`);
+  fs.writeFileSync(logoPath, Buffer.from(logoBuffer));
+
+  // Write video to temp if no source path
+  let inputPath = sourcePath && fs.existsSync(sourcePath) ? sourcePath : null;
+  let tempInputCreated = false;
+  if (!inputPath) {
+    inputPath = path.join(tmpDir, `gemini_in_${ts}.mp4`);
+    fs.writeFileSync(inputPath, Buffer.from(buffer));
+    tempInputCreated = true;
+  }
+
+  const outputPath = path.join(tmpDir, `gemini_logo_out_${ts}.mp4`);
+
+  // FFmpeg overlay: scale logo to exact size, position it, apply opacity
+  const alphaVal = Math.max(0, Math.min(1, opacity ?? 1));
+  // Use colorchannelmixer to apply alpha, scale logo to target size, then overlay
+  const filterComplex = [
+    `[1:v]scale=${Math.round(logoW)}:${Math.round(logoH)},`,
+    `colorchannelmixer=aa=${alphaVal.toFixed(3)}`,
+    `[logo];`,
+    `[0:v][logo]overlay=x=${Math.round(logoX)}:y=${Math.round(logoY)}:format=auto[v]`
+  ].join('');
+
+  const args = [
+    '-y',
+    '-i', inputPath,
+    '-i', logoPath,
+    '-filter_complex', filterComplex,
+    '-map', '[v]',
+    '-map', '0:a?',
+    '-c:v', 'libx264',
+    '-crf', '17',
+    '-preset', 'fast',
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'copy',
+    outputPath
+  ];
+
+  return new Promise((resolve) => {
+    let stderr = '';
+    const proc = spawn(ffmpegPath, args, { windowsHide: true });
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('close', (code) => {
+      try { fs.unlinkSync(logoPath); } catch (_) {}
+      if (tempInputCreated) { try { fs.unlinkSync(inputPath); } catch (_) {} }
+      if (code === 0 && fs.existsSync(outputPath)) {
+        const outBuf = fs.readFileSync(outputPath);
+        try { fs.unlinkSync(outputPath); } catch (_) {}
+        resolve({ success: true, buffer: outBuf });
+      } else {
+        try { fs.unlinkSync(outputPath); } catch (_) {}
+        resolve({ success: false, error: `FFmpeg overlay error (code ${code}): ${stderr.slice(-400)}` });
+      }
+    });
+    proc.on('error', (err) => {
+      try { fs.unlinkSync(logoPath); } catch (_) {}
+      if (tempInputCreated) { try { fs.unlinkSync(inputPath); } catch (_) {} }
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
+
 // ── IPC: Process video natively with FFmpeg ──────────────────────────────────
 ipcMain.handle('process-video', async (event, { sourcePath, buffer, watermarkRect, width, height }) => {
   const os = require('os');
