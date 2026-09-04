@@ -775,9 +775,7 @@ window.addEventListener('paste', e => {
     clearAfterImage();
     clearAfterVideo();
     clearBeforeVideo();
-    [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
-    beforeEmpty.classList.remove('hidden');
-    beforeEmpty2.classList.remove('hidden');
+    clearBeforeImage();
 
     setStatus('idle', 'Chờ ảnh hoặc video...');
   });
@@ -813,24 +811,34 @@ window.addEventListener('paste', e => {
       wipeEmpty?.classList.add('hidden');
       if (hasBefore) {
         wipeImgBefore.src = beforeImg.src;
+        wipeImgBefore.classList.add('loaded');
         wipeImgBefore.classList.remove('hidden');
         wipeVideoBefore.classList.remove('active');
       } else if (hasBeforeVid) {
         wipeVideoBefore.src = beforeVideo.src;
         wipeVideoBefore.classList.add('active');
         wipeImgBefore.classList.add('hidden');
+        wipeImgBefore.classList.remove('loaded');
       }
 
       if (hasAfter) {
         wipeImgAfter.src = afterImg.src;
+        wipeImgAfter.classList.add('loaded');
         wipeImgAfter.classList.remove('hidden');
         wipeVideoAfter.classList.remove('active');
       } else if (hasAfterVid) {
         wipeVideoAfter.src = afterVideo.src;
         wipeVideoAfter.classList.add('active');
         wipeImgAfter.classList.add('hidden');
+        wipeImgAfter.classList.remove('loaded');
       }
     } else {
+      wipeImgBefore?.removeAttribute('src');
+      wipeImgBefore?.classList.remove('loaded');
+      wipeImgBefore?.classList.add('hidden');
+      wipeImgAfter?.removeAttribute('src');
+      wipeImgAfter?.classList.remove('loaded');
+      wipeImgAfter?.classList.add('hidden');
       wipeEmpty?.classList.remove('hidden');
     }
   }
@@ -844,40 +852,59 @@ window.addEventListener('paste', e => {
   // ── Image helpers ─────────────────────────────────────────────────────────
   function setBeforeImage(url) {
     [beforeImg, beforeImg2].forEach(img => {
+      if (!img) return;
       img.src = url;
       img.onload = () => {
         img.classList.add('loaded');
+        img.classList.remove('hidden');
         renderTab1WatermarkBox();
       };
       img.classList.remove('hidden');
     });
-    [beforeVideo, beforeVideo2].forEach(v => { v.classList.remove('active'); });
-    beforeEmpty.classList.add('hidden');
-    beforeEmpty2.classList.add('hidden');
+    [beforeVideo, beforeVideo2].forEach(v => { v?.classList.remove('active'); });
+    beforeEmpty?.classList.add('hidden');
+    beforeEmpty2?.classList.add('hidden');
     if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function clearBeforeImage() {
-    [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
+    [beforeImg, beforeImg2].forEach(img => {
+      if (!img) return;
+      img.removeAttribute('src');
+      img.classList.remove('loaded');
+      img.classList.add('hidden');
+    });
+    beforeEmpty?.classList.remove('hidden');
+    beforeEmpty2?.classList.remove('hidden');
     hideTab1WatermarkBox();
     if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function setAfterImage(url) {
     [afterImg, afterImg2].forEach(img => {
+      if (!img) return;
       img.src = url;
-      img.onload = () => img.classList.add('loaded');
+      img.onload = () => {
+        img.classList.add('loaded');
+        img.classList.remove('hidden');
+      };
+      img.classList.remove('hidden');
     });
-    [afterVideo, afterVideo2].forEach(v => { v.classList.remove('active'); });
-    afterEmpty.classList.add('hidden');
-    afterEmpty2.classList.add('hidden');
+    [afterVideo, afterVideo2].forEach(v => { v?.classList.remove('active'); });
+    afterEmpty?.classList.add('hidden');
+    afterEmpty2?.classList.add('hidden');
     if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function clearAfterImage() {
-    [afterImg, afterImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
-    afterEmpty.classList.remove('hidden');
-    afterEmpty2.classList.remove('hidden');
+    [afterImg, afterImg2].forEach(img => {
+      if (!img) return;
+      img.removeAttribute('src');
+      img.classList.remove('loaded');
+      img.classList.add('hidden');
+    });
+    afterEmpty?.classList.remove('hidden');
+    afterEmpty2?.classList.remove('hidden');
     if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
@@ -1482,7 +1509,7 @@ window.addEventListener('paste', e => {
     // Reset results
     resultBlob = null;
     btnSave.disabled = true;
-    [afterImg, afterImg2].forEach(img => { if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); } });
+    [afterImg, afterImg2].forEach(img => { if (img) { img.removeAttribute('src'); img.classList.remove('loaded'); img.classList.add('hidden'); } });
     [afterVideo, afterVideo2].forEach(v => { if (v) { v.src = ''; v.classList.remove('active'); v.classList.add('hidden'); } });
     afterEmpty.classList.remove('hidden');
     if (afterEmpty2) afterEmpty2.classList.remove('hidden');
@@ -1492,7 +1519,7 @@ window.addEventListener('paste', e => {
     if (beforeEmpty2) beforeEmpty2.classList.add('hidden');
 
     if (isVideoMode) {
-      [beforeImg, beforeImg2].forEach(img => { if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); } });
+      [beforeImg, beforeImg2].forEach(img => { if (img) { img.removeAttribute('src'); img.classList.remove('loaded'); img.classList.add('hidden'); } });
       [beforeVideo, beforeVideo2].forEach(v => {
         if (v) {
           v.src = url;
@@ -2125,7 +2152,7 @@ window.addEventListener('paste', e => {
     btnLogoSaveAll.classList.add('hidden');
     if (logoDragBox) logoDragBox.classList.add('hidden');
     [beforeImg, afterImg, beforeImg2, afterImg2].forEach(img => {
-      if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); }
+      if (img) { img.removeAttribute('src'); img.classList.remove('loaded'); img.classList.add('hidden'); }
     });
     [beforeVideo, afterVideo, beforeVideo2, afterVideo2].forEach(v => {
       if (v) { v.src = ''; v.classList.remove('active'); v.classList.add('hidden'); }
@@ -2869,8 +2896,9 @@ window.addEventListener('paste', e => {
       showAfterPreview(already.url);
       btnSave.disabled = false;
     } else {
-      if (afterImg) { afterImg.src = ''; afterImg.classList.add('hidden'); }
-      if (afterImg2) { afterImg2.src = ''; afterImg2.classList.add('hidden'); }
+      [afterImg, afterImg2].forEach(img => {
+        if (img) { img.removeAttribute('src'); img.classList.remove('loaded'); img.classList.add('hidden'); }
+      });
       afterEmpty?.classList.remove('hidden');
       afterEmpty2?.classList.remove('hidden');
       btnSave.disabled = true;
@@ -3114,10 +3142,13 @@ window.addEventListener('paste', e => {
       btnSaveAll.classList.add('hidden');
       btnProcess.disabled = true;
       btnSave.disabled = true;
-      if (beforeImg) { beforeImg.src = ''; beforeImg.classList.add('hidden'); }
-      if (afterImg) { afterImg.src = ''; afterImg.classList.add('hidden'); }
+      [beforeImg, afterImg, beforeImg2, afterImg2].forEach(img => {
+        if (img) { img.removeAttribute('src'); img.classList.remove('loaded'); img.classList.add('hidden'); }
+      });
       beforeEmpty?.classList.remove('hidden');
       afterEmpty?.classList.remove('hidden');
+      beforeEmpty2?.classList.remove('hidden');
+      afterEmpty2?.classList.remove('hidden');
       setStatus('ok', 'Đã hủy và sẵn sàng chọn ảnh mới');
     });
   }

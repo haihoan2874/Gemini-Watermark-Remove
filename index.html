@@ -715,7 +715,7 @@
           <div class="img-box" id="box-before">
             <span class="img-label">GỐC (TRƯỚC)</span>
             <div class="media-wrap" id="media-wrap-before">
-              <img id="before-img" class="preview-img" alt="Ảnh gốc" draggable="false"/>
+              <img id="before-img" class="preview-img hidden" alt="" draggable="false"/>
               <video id="before-video" class="preview-video" muted playsinline controls></video>
               <!-- Watermark detect box for Tab 1 -->
               <div id="watermark-detect-box" class="watermark-detect-box hidden" title="Vị trí watermark Gemini phát hiện">
@@ -727,28 +727,48 @@
                 <div class="logo-drag-badge">✥ Kéo vị trí logo</div>
               </div>
             </div>
-            <div class="img-empty" id="before-empty"><span>Chưa có file</span></div>
+            <div class="img-empty" id="before-empty">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Chưa có file</span>
+            </div>
           </div>
           <div class="img-box" id="box-after">
             <span class="img-label img-label--after">KẾT QUẢ (SAU)</span>
             <div class="media-wrap" id="media-wrap-after">
-              <img id="after-img" class="preview-img" alt="Ảnh sau xử lý" draggable="false"/>
+              <img id="after-img" class="preview-img hidden" alt="" draggable="false"/>
               <video id="after-video" class="preview-video" muted playsinline controls></video>
             </div>
-            <div class="img-empty" id="after-empty"><span>Chưa xử lý</span></div>
+            <div class="img-empty" id="after-empty">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Chưa xử lý</span>
+            </div>
           </div>
         </div>
 
         <!-- Single views -->
         <div class="single-view hidden" id="view-before">
-          <img id="before-img-2" class="preview-img preview-img--full" alt="Ảnh gốc" draggable="false"/>
+          <img id="before-img-2" class="preview-img preview-img--full hidden" alt="" draggable="false"/>
           <video id="before-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
-          <div class="img-empty" id="before-empty-2"><span>Chưa có file</span></div>
+          <div class="img-empty" id="before-empty-2">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Chưa có file</span>
+          </div>
         </div>
         <div class="single-view hidden" id="view-after">
-          <img id="after-img-2" class="preview-img preview-img--full" alt="Ảnh sau xử lý" draggable="false"/>
+          <img id="after-img-2" class="preview-img preview-img--full hidden" alt="" draggable="false"/>
           <video id="after-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
-          <div class="img-empty" id="after-empty-2"><span>Chưa xử lý</span></div>
+          <div class="img-empty" id="after-empty-2">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Chưa xử lý</span>
+          </div>
         </div>
 
         <!-- Wipe comparison view -->
@@ -756,13 +776,13 @@
           <div class="wipe-container" id="wipe-container">
             <!-- Underneath image (Before) -->
             <div class="wipe-layer wipe-layer--before" id="wipe-layer-before">
-              <img id="wipe-img-before" class="preview-img preview-img--full" alt="Ảnh trước" draggable="false"/>
+              <img id="wipe-img-before" class="preview-img preview-img--full hidden" alt="" draggable="false"/>
               <video id="wipe-video-before" class="preview-video preview-video--full" muted playsinline controls></video>
               <span class="img-label">GỐC (TRƯỚC)</span>
             </div>
             <!-- Overlay image (After) clipped by slider -->
             <div class="wipe-layer wipe-layer--after" id="wipe-layer-after">
-              <img id="wipe-img-after" class="preview-img preview-img--full" alt="Ảnh sau" draggable="false"/>
+              <img id="wipe-img-after" class="preview-img preview-img--full hidden" alt="" draggable="false"/>
               <video id="wipe-video-after" class="preview-video preview-video--full" muted playsinline controls></video>
               <span class="img-label img-label--after">KẾT QUẢ (SAU)</span>
             </div>
