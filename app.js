@@ -1,11 +1,11 @@
 /**
  * app.js — Main renderer logic
- * Handles drag/drop, processing pipeline, tab switching, download.
+ * Handles drag/drop, processing pipeline, custom logo overlay, tab switching, download.
  */
 (() => {
   const isElectron = typeof window.electronAPI !== 'undefined';
 
-  // ── DOM ────────────────────────────────────────────────────────────────────
+  // ── DOM Elements ───────────────────────────────────────────────────────────
   const dropZone     = document.getElementById('drop-zone');
   const fileInput    = document.getElementById('file-input');
   const dzIdle       = document.getElementById('dz-idle');
@@ -23,6 +23,23 @@
   const qProgressTxt = document.getElementById('q-progress-text');
   const overwriteWrap = document.getElementById('overwrite-wrap');
   const chkOverwrite  = document.getElementById('chk-overwrite');
+
+  // Custom Logo DOM Elements
+  const chkEnableLogo   = document.getElementById('chk-enable-logo');
+  const logoBody        = document.getElementById('logo-body');
+  const logoUploader    = document.getElementById('logo-uploader');
+  const logoFileInput   = document.getElementById('logo-file-input');
+  const logoIdle        = document.getElementById('logo-idle');
+  const logoPreviewWrap = document.getElementById('logo-preview-wrap');
+  const logoThumb       = document.getElementById('logo-thumb');
+  const logoName        = document.getElementById('logo-name');
+  const btnRemoveLogo   = document.getElementById('btn-remove-logo');
+  const rngLogoScale    = document.getElementById('rng-logo-scale');
+  const valLogoScale    = document.getElementById('val-logo-scale');
+  const rngLogoOpacity  = document.getElementById('rng-logo-opacity');
+  const valLogoOpacity  = document.getElementById('val-logo-opacity');
+  const modeCleanOverlay = document.getElementById('mode-clean-overlay');
+  const modeOverlayOnly  = document.getElementById('mode-overlay-only');
 
   // Preview elements
   const beforeImg  = document.getElementById('before-img');
@@ -62,6 +79,15 @@
   let isVideoMode    = false; // true when current file is a video
   let videoAbortCtrl = null; // AbortController for cancelling video processing
 
+  // Custom Logo State
+  let customLogo = null; // { dataUrl: string, name: string, img: Image }
+  let logoSettings = {
+    enabled: false,
+    scale: 100,
+    opacity: 100,
+    mode: 'clean-and-overlay' // 'clean-and-overlay' | 'overlay-only'
+  };
+
   // ── Native menu (Electron) ────────────────────────────────────────────────
   if (isElectron) {
     window.electronAPI.onOpenFiles((paths) => {
@@ -95,6 +121,219 @@
     return (file.type && file.type.startsWith('image/')) ||
       /\.(png|jpe?g|webp|avif|bmp|gif)$/i.test(file.name);
   }
+
+  // ── Custom Logo Management & LocalStorage ─────────────────────────────────
+  function initCustomLogo() {
+    try {
+      const savedSettings = localStorage.getItem('gemini_logo_settings');
+      if (savedSettings) {
+        logoSettings = Object.assign(logoSettings, JSON.parse(savedSettings));
+      }
+    } catch (_) {}
+
+    // Apply saved settings to UI
+    chkEnableLogo.checked = !!logoSettings.enabled;
+    if (logoSettings.enabled) {
+      logoBody.classList.remove('hidden');
+    } else {
+      logoBody.classList.add('hidden');
+    }
+
+    rngLogoScale.value = logoSettings.scale || 100;
+    valLogoScale.textContent = `${rngLogoScale.value}%`;
+
+    rngLogoOpacity.value = logoSettings.opacity !== undefined ? logoSettings.opacity : 100;
+    valLogoOpacity.textContent = `${rngLogoOpacity.value}%`;
+
+    if (logoSettings.mode === 'overlay-only') {
+      if (modeOverlayOnly) modeOverlayOnly.checked = true;
+    } else {
+      if (modeCleanOverlay) modeCleanOverlay.checked = true;
+    }
+
+    // Load saved logo image
+    try {
+      const savedLogo = localStorage.getItem('gemini_custom_logo');
+      if (savedLogo) {
+        const parsed = JSON.parse(savedLogo);
+        if (parsed && parsed.dataUrl) {
+          applyCustomLogoData(parsed.dataUrl, parsed.name || 'logo.png', false);
+        }
+      }
+    } catch (_) {}
+  }
+
+  function applyCustomLogoData(dataUrl, name, saveToStorage = true) {
+    const img = new Image();
+    img.onload = () => {
+      customLogo = { dataUrl, name, img };
+      logoThumb.src = dataUrl;
+      logoName.textContent = name;
+      logoIdle.classList.add('hidden');
+      logoPreviewWrap.classList.remove('hidden');
+
+      if (saveToStorage) {
+        try {
+          localStorage.setItem('gemini_custom_logo', JSON.stringify({ dataUrl, name }));
+        } catch (e) {
+          console.warn('Cannot save logo to localStorage:', e);
+        }
+      }
+    };
+    img.src = dataUrl;
+  }
+
+  function removeCustomLogo() {
+    customLogo = null;
+    logoThumb.src = '';
+    logoName.textContent = '';
+    logoPreviewWrap.classList.add('hidden');
+    logoIdle.classList.remove('hidden');
+    logoFileInput.value = '';
+    try {
+      localStorage.removeItem('gemini_custom_logo');
+    } catch (_) {}
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem('gemini_logo_settings', JSON.stringify(logoSettings));
+    } catch (_) {}
+  }
+
+  // Toggle enable
+  chkEnableLogo.addEventListener('change', () => {
+    logoSettings.enabled = chkEnableLogo.checked;
+    if (logoSettings.enabled) {
+      logoBody.classList.remove('hidden');
+    } else {
+      logoBody.classList.add('hidden');
+    }
+    saveSettings();
+  });
+
+  // Logo upload click & drag
+  logoUploader.addEventListener('click', (e) => {
+    if (e.target !== btnRemoveLogo && !btnRemoveLogo.contains(e.target)) {
+      logoFileInput.click();
+    }
+  });
+
+  logoUploader.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    logoUploader.classList.add('drag-over');
+  });
+  logoUploader.addEventListener('dragleave', () => logoUploader.classList.remove('drag-over'));
+  logoUploader.addEventListener('drop', (e) => {
+    e.preventDefault();
+    logoUploader.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && isImageFile(file)) {
+      readDataURL(file).then(url => applyCustomLogoData(url, file.name, true));
+    }
+  });
+
+  logoFileInput.addEventListener('change', () => {
+    const file = logoFileInput.files[0];
+    if (file) {
+      readDataURL(file).then(url => applyCustomLogoData(url, file.name, true));
+    }
+  });
+
+  btnRemoveLogo.addEventListener('click', (e) => {
+    e.stopPropagation();
+    removeCustomLogo();
+  });
+
+  // Sliders
+  rngLogoScale.addEventListener('input', () => {
+    logoSettings.scale = parseInt(rngLogoScale.value, 10);
+    valLogoScale.textContent = `${logoSettings.scale}%`;
+    saveSettings();
+  });
+
+  rngLogoOpacity.addEventListener('input', () => {
+    logoSettings.opacity = parseInt(rngLogoOpacity.value, 10);
+    valLogoOpacity.textContent = `${logoSettings.opacity}%`;
+    saveSettings();
+  });
+
+  // Mode Radios
+  if (modeCleanOverlay) {
+    modeCleanOverlay.addEventListener('change', () => {
+      if (modeCleanOverlay.checked) {
+        logoSettings.mode = 'clean-and-overlay';
+        saveSettings();
+      }
+    });
+  }
+  if (modeOverlayOnly) {
+    modeOverlayOnly.addEventListener('change', () => {
+      if (modeOverlayOnly.checked) {
+        logoSettings.mode = 'overlay-only';
+        saveSettings();
+      }
+    });
+  }
+
+  // Helper: overlay custom logo onto canvas
+  function overlayCustomLogo(canvas, meta) {
+    if (!logoSettings.enabled || !customLogo || !customLogo.img || !customLogo.img.complete) {
+      return canvas;
+    }
+
+    const ctx = canvas.getContext('2d');
+    const scale = (logoSettings.scale || 100) / 100;
+    const opacity = (logoSettings.opacity !== undefined ? logoSettings.opacity : 100) / 100;
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Target watermark coordinates & size
+    let targetX, targetY, targetW, targetH;
+    if (meta && meta.width > 0 && meta.height > 0) {
+      targetX = meta.x;
+      targetY = meta.y;
+      targetW = meta.width;
+      targetH = meta.height;
+    } else {
+      const defaultSize = (W > 1024 || H > 1024) ? 96 : 48;
+      const margin = (W > 1024 || H > 1024) ? 48 : 24;
+      targetW = defaultSize;
+      targetH = defaultSize;
+      targetX = W - targetW - margin;
+      targetY = H - targetH - margin;
+    }
+
+    // Preserve aspect ratio of the custom logo
+    const logoW = customLogo.img.naturalWidth || customLogo.img.width || targetW;
+    const logoH = customLogo.img.naturalHeight || customLogo.img.height || targetH;
+    const logoAspect = logoW / logoH;
+
+    let drawW = targetW * scale;
+    let drawH = targetH * scale;
+
+    if (logoAspect >= 1) {
+      drawH = drawW / logoAspect;
+    } else {
+      drawW = drawH * logoAspect;
+    }
+
+    // Center within watermark bounding area
+    const centerX = targetX + targetW / 2;
+    const centerY = targetY + targetH / 2;
+    const drawX = Math.round(centerX - drawW / 2);
+    const drawY = Math.round(centerY - drawH / 2);
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(customLogo.img, drawX, drawY, drawW, drawH);
+    ctx.restore();
+
+    return canvas;
+  }
+
+  initCustomLogo();
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -232,7 +471,9 @@
       const url = URL.createObjectURL(blob);
       setAfterImage(url);
 
-      if (detection.found) {
+      if (logoSettings.enabled && customLogo) {
+        setStatus('ok', '✓ Đã xử lý & chèn logo thương hiệu');
+      } else if (detection.found) {
         setStatus('ok', '✓ Watermark đã được xử lý');
       } else {
         setStatus('warn', 'Không tìm thấy watermark — ảnh giữ nguyên');
@@ -346,29 +587,64 @@
         const img = new Image();
         img.onload = async () => {
           try {
-            const result = await GeminiWatermarkRemover.removeWatermarkFromImage(img);
-            
-            const detection = {
-              found: !!result.meta,
-              confidence: result.meta ? result.meta.confidence : 0,
-              isFallback: result.meta ? result.meta.isFallback : false,
-              x: result.meta ? result.meta.x : 0,
-              y: result.meta ? result.meta.y : 0,
-              w: result.meta ? result.meta.width : 0,
-              h: result.meta ? result.meta.height : 0
-            };
+            let detection = { found: false, confidence: 0, isFallback: false, x: 0, y: 0, w: 0, h: 0 };
+            let finalCanvas = null;
 
-            const source = result.canvas;
-            const canvas = document.createElement('canvas');
-            canvas.width = source.width;
-            canvas.height = source.height;
-            canvas.getContext('2d').drawImage(source, 0, 0);
+            const isOverlayOnly = logoSettings.enabled && customLogo && (logoSettings.mode === 'overlay-only');
+
+            if (isOverlayOnly) {
+              // Direct overlay mode: preserve original image and overlay custom logo directly
+              finalCanvas = document.createElement('canvas');
+              finalCanvas.width = img.naturalWidth || img.width;
+              finalCanvas.height = img.naturalHeight || img.height;
+              finalCanvas.getContext('2d').drawImage(img, 0, 0);
+
+              try {
+                const detectResult = await GeminiWatermarkRemover.removeWatermarkFromImage(img);
+                if (detectResult.meta) {
+                  detection = {
+                    found: true,
+                    confidence: detectResult.meta.confidence || 0,
+                    isFallback: detectResult.meta.isFallback || false,
+                    x: detectResult.meta.x || 0,
+                    y: detectResult.meta.y || 0,
+                    w: detectResult.meta.width || 0,
+                    h: detectResult.meta.height || 0
+                  };
+                }
+              } catch (_) {}
+
+              overlayCustomLogo(finalCanvas, detection.found ? detection : null);
+            } else {
+              // Clean watermark mode (default)
+              const result = await GeminiWatermarkRemover.removeWatermarkFromImage(img);
+              detection = {
+                found: !!result.meta,
+                confidence: result.meta ? result.meta.confidence : 0,
+                isFallback: result.meta ? result.meta.isFallback : false,
+                x: result.meta ? result.meta.x : 0,
+                y: result.meta ? result.meta.y : 0,
+                w: result.meta ? result.meta.width : 0,
+                h: result.meta ? result.meta.height : 0
+              };
+
+              const source = result.canvas;
+              finalCanvas = document.createElement('canvas');
+              finalCanvas.width = source.width;
+              finalCanvas.height = source.height;
+              finalCanvas.getContext('2d').drawImage(source, 0, 0);
+
+              // Overlay custom logo if enabled
+              if (logoSettings.enabled && customLogo) {
+                overlayCustomLogo(finalCanvas, detection.found ? detection : null);
+              }
+            }
 
             // Export as PNG for WebP & PNG (lossless, high fidelity & wide compatibility), or JPEG for JPG inputs
             const isJpeg = (file.type === 'image/jpeg') || /\.jpe?g$/i.test(file.name);
             const mime = isJpeg ? 'image/jpeg' : 'image/png';
             const q    = isJpeg ? 0.95 : undefined;
-            canvas.toBlob(blob => resolve({ detection, blob }), mime, q);
+            finalCanvas.toBlob(blob => resolve({ detection, blob }), mime, q);
           } catch (e) { reject(e); }
         };
         img.onerror = () => reject(new Error('Không đọc được ảnh'));
@@ -391,7 +667,11 @@
       const blob = await renderVideoWithoutWatermark(file, signal);
       cleanBlob = blob;
       setAfterVideo(blob);
-      setStatus('ok', '✓ Watermark video đã được xóa');
+      if (logoSettings.enabled && customLogo) {
+        setStatus('ok', '✓ Watermark video đã được xóa & chèn logo thương hiệu');
+      } else {
+        setStatus('ok', '✓ Watermark video đã được xóa');
+      }
       btnSave.disabled = false;
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -486,6 +766,9 @@
     encoder.configure(config);
 
     // 5. Deterministic Frame-by-Frame Processing (0% dropped frames, 100% clean logo removal)
+    let cachedVideoMeta = null;
+    const isOverlayOnly = logoSettings.enabled && customLogo && (logoSettings.mode === 'overlay-only');
+
     for (let i = 0; i < totalFrames; i++) {
       if (signal.aborted) {
         try { encoder.close(); } catch (_) {}
@@ -505,8 +788,18 @@
       // Draw original frame to canvas
       frameCtx.drawImage(vid, 0, 0, W, H);
 
-      // Clean watermark using SDK reverse alpha blending
-      const cleanCanvas = await engine.removeWatermarkFromImage(frameCanvas);
+      let cleanCanvas;
+      if (isOverlayOnly) {
+        cleanCanvas = frameCanvas;
+      } else {
+        // Clean watermark using SDK reverse alpha blending
+        cleanCanvas = await engine.removeWatermarkFromImage(frameCanvas);
+      }
+
+      // Overlay custom logo if enabled
+      if (logoSettings.enabled && customLogo) {
+        overlayCustomLogo(cleanCanvas, cachedVideoMeta);
+      }
 
       // Create VideoFrame with mathematically exact CFR timestamp
       const timestampMicros = i * frameDurationMicros;
@@ -788,7 +1081,6 @@
 
   function cleanName(name) {
     const dot = name.lastIndexOf('.');
-    // Keep original name (no -clean suffix) — used when saving via dialog
     return dot > 0 ? name.slice(0, dot) : name;
   }
 
