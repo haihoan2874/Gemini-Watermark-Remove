@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gemini Watermark Remover - TRỊNH HẢI HOÀN</title>
+  <title>Gemini Studio Toolkit - TRỊNH HẢI HOÀN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
@@ -13,58 +13,88 @@
 
 <div class="app">
 
-  <!-- Top bar -->
+  <!-- ── Top Header Bar ─────────────────────────────────────────── -->
   <header class="topbar">
-    <div class="topbar-brand">
-      <span class="topbar-icon">✦</span>
-      <span class="topbar-title">Gemini Watermark Remover - TRỊNH HẢI HOÀN</span>
+    <div class="topbar-left">
+      <div class="brand">
+        <div class="brand-icon-wrap">
+          <span class="brand-sparkle">✦</span>
+        </div>
+        <div class="brand-info">
+          <span class="brand-title">GEMINI STUDIO TOOLKIT</span>
+          <span class="brand-sub">Offline Creator & File Studio · Trịnh Hải Hoàn</span>
+        </div>
+      </div>
     </div>
-    <div class="topbar-meta">
-      <span class="badge">Local · Private</span>
-      <span class="badge">PNG · JPG · WebP</span>
-      <span class="badge">MP4 · WebM · MOV</span>
+
+    <!-- Center Tab Switcher Navigation -->
+    <nav class="nav-tabs" aria-label="Bộ điều hướng chức năng chính">
+      <button class="nav-tab active" id="mtab-remove" data-tab="remove">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+          <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd"/>
+        </svg>
+        <span>Xóa Watermark</span>
+      </button>
+      <button class="nav-tab" id="mtab-logo" data-tab="logo">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+          <path fill-rule="evenodd" d="M1 5.25A2.25 2.25 0 013.25 3h13.5A2.25 2.25 0 0119 5.25v9.5A2.25 2.25 0 0116.75 17H3.25A2.25 2.25 0 011 14.75v-9.5zm1.5 5.81v3.69c0 .414.336.75.75.75h13.5a.75.75 0 00.75-.75v-2.69l-2.22-2.219a.75.75 0 00-1.061 0l-2.47 2.47-1.22-1.22a.75.75 0 00-1.06 0L2.5 11.06zm0-1.56l2.53-2.53a.75.75 0 011.06 0l1.22 1.22 2.47-2.47a.75.75 0 011.06 0L14.5 13.5V5.25a.75.75 0 00-.75-.75H3.25a.75.75 0 00-.75.75v4.25z" clip-rule="evenodd"/>
+        </svg>
+        <span>Chèn Logo</span>
+      </button>
+      <button class="nav-tab" id="mtab-convert" data-tab="convert">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+          <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.451a.75.75 0 000-1.5H4.5a.75.75 0 00-.75.75v3.75a.75.75 0 001.5 0v-2.19l.343.342a7 7 0 0011.93-3.155.75.75 0 00-1.46-.302zM4.688 8.576a5.5 5.5 0 019.201-2.466l.312.311H11.75a.75.75 0 000 1.5h3.75a.75.75 0 00.75-.75V3.421a.75.75 0 00-1.5 0v2.19l-.343-.342A7 7 0 002.477 8.424a.75.75 0 001.46.302z" clip-rule="evenodd"/>
+        </svg>
+        <span>Chuyển Định Dạng</span>
+      </button>
+    </nav>
+
+    <div class="topbar-right">
+      <div class="system-status-pill" title="Mọi thao tác thực thi 100% nội bộ trên máy, hoàn toàn bảo mật">
+        <span class="status-pulse-dot"></span>
+        <span class="status-pill-text">100% Offline Engine</span>
+      </div>
     </div>
   </header>
 
-  <!-- Main workspace -->
+  <!-- ── Main Workspace ─────────────────────────────────────────── -->
   <main class="workspace">
 
-    <!-- Left panel with main tabs -->
-    <section class="panel panel-left" aria-label="Điều khiển">
+    <!-- ══ LEFT PANEL: Controls & Inputs ══════════════════════════ -->
+    <aside class="panel panel-left" aria-label="Điều khiển tác vụ">
 
-      <!-- Main tab switcher -->
-      <div class="main-tabs">
-        <button class="main-tab active" id="mtab-remove" data-tab="remove">
-          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd"/></svg>
-          Xóa Watermark
-        </button>
-        <button class="main-tab" id="mtab-logo" data-tab="logo">
-          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M1 5.25A2.25 2.25 0 013.25 3h13.5A2.25 2.25 0 0119 5.25v9.5A2.25 2.25 0 0116.75 17H3.25A2.25 2.25 0 011 14.75v-9.5zm1.5 5.81v3.69c0 .414.336.75.75.75h13.5a.75.75 0 00.75-.75v-2.69l-2.22-2.219a.75.75 0 00-1.061 0l-2.47 2.47-1.22-1.22a.75.75 0 00-1.06 0L2.5 11.06zm0-1.56l2.53-2.53a.75.75 0 011.06 0l1.22 1.22 2.47-2.47a.75.75 0 011.06 0L14.5 13.5V5.25a.75.75 0 00-.75-.75H3.25a.75.75 0 00-.75.75v4.25z" clip-rule="evenodd"/></svg>
-          Chèn Logo
-        </button>
-      </div>
-
-      <!-- ══ TAB 1: XÓA WATERMARK ══════════════════════════════════════ -->
+      <!-- ── TAB 1: XÓA WATERMARK ──────────────────────────────── -->
       <div class="tab-content active" id="tc-remove">
 
         <!-- Drop zone -->
-        <div id="drop-zone" class="dropzone" role="button" tabindex="0" aria-label="Kéo thả hoặc nhấn để chọn ảnh">
+        <div id="drop-zone" class="dropzone" role="button" tabindex="0" aria-label="Kéo thả hoặc nhấn để chọn ảnh/video">
           <input type="file" id="file-input"
             accept="image/*,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/avi,video/mov"
             multiple aria-label="Chọn file ảnh hoặc video"/>
           <div class="dropzone-idle" id="dz-idle">
-            <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <div class="dropzone-icon-ring">
+              <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <p class="dropzone-label">Kéo ảnh hoặc video vào đây</p>
-            <p class="dropzone-hint">hoặc nhấn để chọn · PNG, JPG, WebP · MP4, WebM, MOV</p>
+            <p class="dropzone-hint">hoặc nhấn để chọn · Hỗ trợ Paste Ctrl + V</p>
+            <div class="format-tags">
+              <span class="format-tag">PNG</span>
+              <span class="format-tag">JPG</span>
+              <span class="format-tag">WebP</span>
+              <span class="format-tag">MP4</span>
+              <span class="format-tag">WebM</span>
+            </div>
           </div>
           <div class="dropzone-loaded hidden" id="dz-loaded">
-            <svg class="dropzone-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <div class="dropzone-check-ring">
+              <svg class="dropzone-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <p class="dropzone-loaded-name" id="loaded-name">—</p>
-            <p class="dropzone-hint">Nhấn để đổi ảnh</p>
+            <p class="dropzone-hint">Nhấn để đổi ảnh / video khác</p>
           </div>
         </div>
 
@@ -74,7 +104,7 @@
           <span class="status-msg" id="status-msg">Chờ ảnh hoặc video...</span>
         </div>
 
-        <!-- Video frame progress (hidden by default) -->
+        <!-- Video progress -->
         <div class="video-progress hidden" id="video-progress">
           <div class="video-progress-header">
             <span class="video-progress-label">🎬 Đang xử lý video</span>
@@ -94,25 +124,25 @@
             </svg>
             Xóa Watermark
           </button>
-          <button id="btn-save" class="btn btn-secondary" disabled aria-label="Lưu ảnh đã xử lý">
+          <button id="btn-save" class="btn btn-secondary" disabled aria-label="Lưu kết quả">
             <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
               <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
               <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
             </svg>
-            Lưu ảnh
+            Lưu ảnh / video
           </button>
-          <button id="btn-reset" class="btn btn-ghost" aria-label="Hủy">Hủy (Chọn lại ảnh)</button>
-          <button id="btn-save-all" class="btn btn-ghost hidden" aria-label="Tải tất cả ảnh">Tải tất cả</button>
+          <button id="btn-save-all" class="btn btn-secondary hidden" aria-label="Tải tất cả">Tải tất cả</button>
+          <button id="btn-reset" class="btn btn-ghost" aria-label="Hủy">Hủy (Chọn lại)</button>
           <label class="overwrite-label hidden" id="overwrite-wrap">
             <input type="checkbox" id="chk-overwrite"/>
-            Ghi đè ảnh gốc
+            <span>Ghi đè ảnh gốc</span>
           </label>
         </div>
 
         <!-- Batch queue -->
         <div class="queue hidden" id="queue">
           <div class="queue-header">
-            <span class="queue-title">Batch</span>
+            <span class="queue-title">Danh sách hàng đợi</span>
             <span class="queue-progress-text" id="q-progress-text">0 / 0</span>
           </div>
           <div class="queue-track">
@@ -123,7 +153,7 @@
 
       </div><!-- /tc-remove -->
 
-      <!-- ══ TAB 2: CHÈN LOGO ══════════════════════════════════════════ -->
+      <!-- ── TAB 2: CHÈN LOGO ─────────────────────────────────── -->
       <div class="tab-content hidden" id="tc-logo">
 
         <!-- Media dropzone -->
@@ -132,49 +162,54 @@
             accept="image/*,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/avi,video/mov"
             multiple aria-label="Chọn ảnh/video để chèn logo"/>
           <div class="dropzone-idle" id="lm-idle">
-            <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <div class="dropzone-icon-ring">
+              <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <p class="dropzone-label">Kéo ảnh hoặc video vào đây</p>
-            <p class="dropzone-hint">PNG, JPG, WebP · MP4, WebM, MOV</p>
+            <p class="dropzone-hint">PNG, JPG, WebP · MP4, WebM, MOV · Paste Ctrl + V</p>
           </div>
           <div class="dropzone-loaded hidden" id="lm-loaded">
-            <svg class="dropzone-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <div class="dropzone-check-ring">
+              <svg class="dropzone-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <p class="dropzone-loaded-name" id="lm-name">—</p>
-            <p class="dropzone-hint">Nhấn để đổi file</p>
+            <p class="dropzone-hint">Nhấn để đổi file khác</p>
           </div>
         </div>
 
-        <!-- Logo batch queue (hidden by default when 1 file) -->
+        <!-- Logo batch queue -->
         <div class="queue hidden" id="logo-queue">
           <div class="queue-header">
             <span class="queue-title">Danh sách file</span>
             <div class="queue-progress-text" id="lq-progress-text">0 / 0</div>
           </div>
-          <div class="queue-progress-bar-wrap">
-            <div class="queue-progress-bar" id="lq-progress-bar"></div>
+          <div class="queue-track">
+            <div class="queue-fill" id="lq-progress-bar"></div>
           </div>
           <ul class="queue-list" id="logo-queue-list" aria-label="Danh sách file chèn logo"></ul>
         </div>
 
-        <!-- Logo file picker -->
-        <div class="logo-section" id="logo-section-tab" style="margin-top:0">
+        <!-- Logo file picker & controls -->
+        <div class="logo-section" id="logo-section-tab">
           <div class="logo-header">
             <div class="logo-title-wrap">
-              <span class="logo-icon">🏷️</span>
-              <span class="logo-title">Ảnh Logo</span>
+              <span class="section-badge">Logo</span>
+              <span class="logo-title">Nhãn & Logo đè</span>
             </div>
           </div>
-          <div class="logo-body" style="border-top:none;padding-top:0">
+
+          <div class="logo-body">
             <div class="logo-uploader" id="logo-uploader">
               <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="hidden"/>
               <div class="logo-drop-idle" id="logo-idle">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
                   <path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span>Chọn ảnh logo (PNG, WebP, SVG)</span>
+                <span>Chọn file logo (PNG trong suốt, WebP, SVG)</span>
               </div>
               <div class="logo-preview-wrap hidden" id="logo-preview-wrap">
                 <img id="logo-thumb" class="logo-thumb" alt="Logo preview"/>
@@ -194,18 +229,22 @@
                 </div>
                 <input type="range" id="rng-logo-scale" min="30" max="250" value="100" class="slider-range"/>
               </div>
+
               <div class="control-row">
                 <div class="control-label-wrap">
-                  <span class="control-label">Độ trong suốt (Opacity)</span>
+                  <span class="control-label">Độ rõ (Opacity)</span>
                   <span class="control-val" id="val-logo-opacity">100%</span>
                 </div>
                 <input type="range" id="rng-logo-opacity" min="10" max="100" value="100" class="slider-range"/>
               </div>
+
               <!-- Position picker -->
               <div class="control-row">
-                <span class="control-label">Vị trí logo</span>
+                <div class="control-label-wrap">
+                  <span class="control-label">Vị trí chèn</span>
+                </div>
                 <button type="button" class="btn-snap-gemini" id="btn-snap-gemini" title="Tự động căn logo đè chính xác lên vị trí icon mờ Gemini">
-                  🎯 Đè chính xác vị trí logo Gemini
+                  🎯 Căn đè chính xác vị trí logo Gemini
                 </button>
                 <div class="pos-grid" id="pos-grid">
                   <button class="pos-btn" data-pos="tl" title="Góc trên trái">↖</button>
@@ -218,31 +257,31 @@
                   <button class="pos-btn" data-pos="bc" title="Dưới giữa">↓</button>
                   <button class="pos-btn active" data-pos="br" title="Góc dưới phải (mặc định Gemini)">↘</button>
                 </div>
-                <span class="pos-hint">💡 Hoặc dùng chuột kéo di chuyển logo trực tiếp trên khung xem trước</span>
+                <span class="pos-hint">💡 Có thể dùng chuột kéo trực tiếp logo trên màn hình xem trước</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Logo tab status -->
+        <!-- Status -->
         <div class="status-row" id="logo-status-row">
           <span class="status-dot" id="logo-status-dot"></span>
           <span class="status-msg" id="logo-status-msg">Chọn ảnh/video và logo để bắt đầu</span>
         </div>
 
-        <!-- Logo tab video progress -->
+        <!-- Video progress -->
         <div class="video-progress hidden" id="logo-video-progress">
           <div class="video-progress-header">
-            <span class="video-progress-label">⚡ FFmpeg đang xử lý</span>
+            <span class="video-progress-label">⚡ FFmpeg đang xử lý video</span>
             <span class="video-progress-frames" id="logo-vp-frames">Đang chạy...</span>
           </div>
           <div class="video-progress-track">
-            <div class="video-progress-fill" id="logo-vp-fill" style="width:40%;animation:pulse-bar 1.2s ease infinite"></div>
+            <div class="video-progress-fill" id="logo-vp-fill" style="width:45%;animation:pulse-bar 1.2s ease infinite"></div>
           </div>
           <span class="video-progress-time" id="logo-vp-time">Ước tính: vài giây</span>
         </div>
 
-        <!-- Logo tab actions -->
+        <!-- Actions -->
         <div class="actions">
           <button id="btn-logo-apply" class="btn btn-primary" disabled>
             <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
@@ -262,67 +301,374 @@
               <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
               <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
             </svg>
-            Tải tất cả (ZIP / Thư mục)
+            Tải tất cả (Thư mục)
           </button>
           <button id="btn-logo-reset" class="btn btn-ghost">Hủy (Chọn lại)</button>
         </div>
 
       </div><!-- /tc-logo -->
 
-    </section>
+      <!-- ── TAB 3: CHUYỂN ĐỔI ĐỊNH DẠNG (MEDIA & TÀI LIỆU) ────── -->
+      <div class="tab-content hidden" id="tc-convert">
 
-    <!-- Right: Before / After preview -->
-    <section class="panel panel-right" aria-label="Xem trước ảnh">
-
-      <div class="preview-header">
-        <h2 class="preview-title">So sánh</h2>
-        <div class="preview-tabs">
-          <button class="tab active" id="tab-split" aria-pressed="true">Split</button>
-          <button class="tab" id="tab-before" aria-pressed="false">Trước</button>
-          <button class="tab" id="tab-after" aria-pressed="false">Sau</button>
+        <!-- Mode filter tags -->
+        <div class="convert-category-bar">
+          <button class="cat-pill active" id="cat-all" data-cat="all">Tất cả</button>
+          <button class="cat-pill" id="cat-media" data-cat="media">🎬 Video & Audio</button>
+          <button class="cat-pill" id="cat-doc" data-cat="doc">📄 Word → PDF</button>
+          <button class="cat-pill" id="cat-image" data-cat="image">🖼️ Hình ảnh</button>
         </div>
-      </div>
 
-      <!-- Split view -->
-      <div class="compare-grid" id="view-split">
-        <div class="img-box" id="box-before">
-          <span class="img-label">TRƯỚC</span>
-          <div class="media-wrap" id="media-wrap-before">
-            <img id="before-img" class="preview-img" alt="Ảnh gốc" draggable="false"/>
-            <video id="before-video" class="preview-video" muted playsinline controls></video>
-            <!-- Watermark detect box for Tab 1 -->
-            <div id="watermark-detect-box" class="watermark-detect-box hidden" title="Vị trí watermark Gemini phát hiện">
-              <div class="watermark-detect-badge">✦ Vị trí Gemini</div>
+        <!-- Dropzone for conversion -->
+        <div id="convert-dropzone" class="dropzone" role="button" tabindex="0" aria-label="Kéo thả file chuyển đổi">
+          <input type="file" id="convert-file-input"
+            accept=".docx,.doc,.png,.jpg,.jpeg,.webp,.ico,.mp4,.webm,.mov,.avi,.mkv,.gif,.mp3,.wav,.aac"
+            multiple aria-label="Chọn file cần chuyển đổi"/>
+          <div class="dropzone-idle" id="cz-idle">
+            <div class="dropzone-icon-ring">
+              <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
-            <!-- Interactive draggable logo overlay box -->
-            <div id="logo-drag-box" class="logo-drag-box hidden" title="Bấm và giữ chuột để di chuyển logo">
-              <img id="logo-drag-img" class="logo-drag-img" alt="" draggable="false"/>
-              <div class="logo-drag-badge">✥ Kéo vị trí</div>
+            <p class="dropzone-label">Kéo thả file Media hoặc Tài liệu vào đây</p>
+            <p class="dropzone-hint">hoặc nhấn để chọn file từ máy · Paste Ctrl + V</p>
+            <div class="format-tags">
+              <span class="format-tag format-tag--doc">DOCX</span>
+              <span class="format-tag format-tag--doc">DOC</span>
+              <span class="format-tag">MP4</span>
+              <span class="format-tag">WebM</span>
+              <span class="format-tag">GIF</span>
+              <span class="format-tag">PNG</span>
+              <span class="format-tag">JPG</span>
+              <span class="format-tag">MP3</span>
             </div>
           </div>
-          <div class="img-empty" id="before-empty"><span>Chưa có file</span></div>
-        </div>
-        <div class="img-box" id="box-after">
-          <span class="img-label img-label--after">SAU</span>
-          <div class="media-wrap" id="media-wrap-after">
-            <img id="after-img" class="preview-img" alt="Ảnh sau xử lý" draggable="false"/>
-            <video id="after-video" class="preview-video" muted playsinline controls></video>
+          <div class="dropzone-loaded hidden" id="cz-loaded">
+            <div class="dropzone-check-ring">
+              <svg class="dropzone-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <p class="dropzone-loaded-name" id="cz-name">0 file đã chọn</p>
+            <p class="dropzone-hint">Nhấn để thêm hoặc đổi file</p>
           </div>
-          <div class="img-empty" id="after-empty"><span>Chưa xử lý</span></div>
         </div>
-      </div>
 
-      <!-- Single views -->
-      <div class="single-view hidden" id="view-before">
-        <img id="before-img-2" class="preview-img preview-img--full" alt="Ảnh gốc" draggable="false"/>
-        <video id="before-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
-        <div class="img-empty" id="before-empty-2"><span>Chưa có file</span></div>
-      </div>
-      <div class="single-view hidden" id="view-after">
-        <img id="after-img-2" class="preview-img preview-img--full" alt="Ảnh sau xử lý" draggable="false"/>
-        <video id="after-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
-        <div class="img-empty" id="after-empty-2"><span>Chưa xử lý</span></div>
-      </div>
+        <!-- Target Format Selector -->
+        <div class="conv-format-section">
+          <div class="section-title-wrap">
+            <span class="section-badge">Đích</span>
+            <span class="conv-section-title">Chọn định dạng xuất</span>
+          </div>
+
+          <!-- Format chips groups -->
+          <div class="format-chips-container">
+            <!-- Group Document -->
+            <div class="chip-group" id="grp-doc">
+              <div class="chip-group-label">Tài liệu</div>
+              <div class="chip-group-items">
+                <button class="format-chip" data-format="pdf" data-type="doc">
+                  <span class="chip-icon">📄</span>
+                  <span class="chip-label">PDF</span>
+                  <span class="chip-sub">Word → PDF</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Group Video -->
+            <div class="chip-group" id="grp-video">
+              <div class="chip-group-label">Video</div>
+              <div class="chip-group-items">
+                <button class="format-chip active" data-format="mp4" data-type="video">
+                  <span class="chip-icon">🎬</span>
+                  <span class="chip-label">MP4</span>
+                  <span class="chip-sub">H.264</span>
+                </button>
+                <button class="format-chip" data-format="webm" data-type="video">
+                  <span class="chip-icon">🌐</span>
+                  <span class="chip-label">WebM</span>
+                  <span class="chip-sub">VP9</span>
+                </button>
+                <button class="format-chip" data-format="gif" data-type="video">
+                  <span class="chip-icon">🎞️</span>
+                  <span class="chip-label">GIF</span>
+                  <span class="chip-sub">Animation</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Group Audio -->
+            <div class="chip-group" id="grp-audio">
+              <div class="chip-group-label">Âm thanh (Tách nhạc)</div>
+              <div class="chip-group-items">
+                <button class="format-chip" data-format="mp3" data-type="audio">
+                  <span class="chip-icon">🎵</span>
+                  <span class="chip-label">MP3</span>
+                  <span class="chip-sub">192/320k</span>
+                </button>
+                <button class="format-chip" data-format="wav" data-type="audio">
+                  <span class="chip-icon">🔊</span>
+                  <span class="chip-label">WAV</span>
+                  <span class="chip-sub">Lossless</span>
+                </button>
+                <button class="format-chip" data-format="aac" data-type="audio">
+                  <span class="chip-icon">📻</span>
+                  <span class="chip-label">AAC</span>
+                  <span class="chip-sub">Apple</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Group Image -->
+            <div class="chip-group" id="grp-image">
+              <div class="chip-group-label">Hình ảnh</div>
+              <div class="chip-group-items">
+                <button class="format-chip" data-format="png" data-type="image">
+                  <span class="chip-icon">🖼️</span>
+                  <span class="chip-label">PNG</span>
+                  <span class="chip-sub">Trong suốt</span>
+                </button>
+                <button class="format-chip" data-format="jpg" data-type="image">
+                  <span class="chip-icon">🌄</span>
+                  <span class="chip-label">JPG</span>
+                  <span class="chip-sub">Nén tối ưu</span>
+                </button>
+                <button class="format-chip" data-format="webp" data-type="image">
+                  <span class="chip-icon">⚡</span>
+                  <span class="chip-label">WebP</span>
+                  <span class="chip-sub">Siêu nhẹ</span>
+                </button>
+                <button class="format-chip" data-format="ico" data-type="image">
+                  <span class="chip-icon">⭐</span>
+                  <span class="chip-label">ICO</span>
+                  <span class="chip-sub">Favicon</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Conversion Options -->
+        <div class="conv-options-section" id="conv-options-section">
+          <!-- Video Options -->
+          <div class="conv-opt-block" id="opt-video">
+            <div class="opt-row">
+              <span class="opt-label">Độ phân giải:</span>
+              <select id="sel-video-res" class="opt-select">
+                <option value="">Giữ nguyên gốc</option>
+                <option value="1920:1080">1080p (Full HD)</option>
+                <option value="1280:720">720p (HD)</option>
+                <option value="854:480">480p (SD)</option>
+              </select>
+            </div>
+            <div class="opt-row">
+              <span class="opt-label">Khung hình (FPS):</span>
+              <select id="sel-video-fps" class="opt-select">
+                <option value="">Giữ nguyên gốc</option>
+                <option value="60">60 FPS</option>
+                <option value="30">30 FPS</option>
+                <option value="24">24 FPS</option>
+              </select>
+            </div>
+            <div class="opt-row">
+              <span class="opt-label">Chất lượng:</span>
+              <select id="sel-video-crf" class="opt-select">
+                <option value="18">Cao nhất (CRF 18)</option>
+                <option value="22" selected>Cân bằng (CRF 22)</option>
+                <option value="28">Nén nhẹ (CRF 28)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- GIF Options -->
+          <div class="conv-opt-block hidden" id="opt-gif">
+            <div class="opt-row">
+              <span class="opt-label">Khung hình GIF:</span>
+              <select id="sel-gif-fps" class="opt-select">
+                <option value="15" selected>15 FPS (mượt & nhẹ)</option>
+                <option value="20">20 FPS</option>
+                <option value="10">10 FPS (siêu nhẹ)</option>
+              </select>
+            </div>
+            <div class="opt-row">
+              <span class="opt-label">Chiều rộng GIF:</span>
+              <select id="sel-gif-scale" class="opt-select">
+                <option value="480" selected>480px (Chuẩn)</option>
+                <option value="640">640px (Lớn)</option>
+                <option value="360">360px (Nhỏ)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Audio Options -->
+          <div class="conv-opt-block hidden" id="opt-audio">
+            <div class="opt-row">
+              <span class="opt-label">Bitrate âm thanh:</span>
+              <select id="sel-audio-bitrate" class="opt-select">
+                <option value="320k">320 kbps (Studio High)</option>
+                <option value="192k" selected>192 kbps (Chuẩn CD)</option>
+                <option value="128k">128 kbps (Tiết kiệm dung lượng)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Image Options -->
+          <div class="conv-opt-block hidden" id="opt-image">
+            <div class="opt-row">
+              <div class="control-label-wrap">
+                <span class="opt-label">Chất lượng nén:</span>
+                <span class="control-val" id="val-img-quality">85%</span>
+              </div>
+              <input type="range" id="rng-img-quality" min="20" max="100" value="85" class="slider-range"/>
+            </div>
+          </div>
+
+          <!-- Doc Options -->
+          <div class="conv-opt-block hidden" id="opt-doc">
+            <div class="engine-notice">
+              <span class="notice-icon">⚡</span>
+              <span>Chuyển đổi Word (.docx/.doc) sang PDF hoàn toàn offline với Word COM Native Engine. Đảm bảo 100% chuẩn font tiếng Việt, không xô lệch bảng biểu.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status & Progress -->
+        <div class="status-row" id="conv-status-row">
+          <span class="status-dot" id="conv-status-dot"></span>
+          <span class="status-msg" id="conv-status-msg">Chọn file và định dạng để bắt đầu</span>
+        </div>
+
+        <div class="video-progress hidden" id="conv-batch-progress">
+          <div class="video-progress-header">
+            <span class="video-progress-label" id="conv-prog-label">Đang chuyển đổi file...</span>
+            <span class="video-progress-frames" id="conv-prog-percent">0%</span>
+          </div>
+          <div class="video-progress-track">
+            <div class="video-progress-fill" id="conv-prog-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="actions">
+          <button id="btn-convert-run" class="btn btn-primary" disabled>
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+            </svg>
+            Bắt đầu chuyển đổi
+          </button>
+          <button id="btn-convert-save-all" class="btn btn-secondary hidden" title="Lưu toàn bộ file đã chuyển đổi vào thư mục">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
+              <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
+            </svg>
+            Tải tất cả (Thư mục)
+          </button>
+          <button id="btn-convert-reset" class="btn btn-ghost">Xóa danh sách</button>
+        </div>
+
+      </div><!-- /tc-convert -->
+
+    </aside>
+
+    <!-- ══ RIGHT PANEL: Comparison Preview OR Conversion Queue Dashboard ══ -->
+    <section class="panel panel-right" aria-label="Xem trước hoặc Quản lý danh sách">
+
+      <!-- Sub-panel A: Before / After Preview (For Tab 1 & Tab 2) -->
+      <div class="preview-container" id="panel-right-compare">
+        <div class="preview-header">
+          <div class="preview-title-wrap">
+            <h2 class="preview-title">Xem trước so sánh</h2>
+            <span class="preview-sub-hint">Kéo thả chuột trên ảnh để di chuyển logo hoặc phóng to</span>
+          </div>
+          <div class="preview-tabs">
+            <button class="tab active" id="tab-split" aria-pressed="true">Song song</button>
+            <button class="tab" id="tab-before" aria-pressed="false">Trước</button>
+            <button class="tab" id="tab-after" aria-pressed="false">Sau</button>
+          </div>
+        </div>
+
+        <!-- Split view -->
+        <div class="compare-grid" id="view-split">
+          <div class="img-box" id="box-before">
+            <span class="img-label">GỐC (TRƯỚC)</span>
+            <div class="media-wrap" id="media-wrap-before">
+              <img id="before-img" class="preview-img" alt="Ảnh gốc" draggable="false"/>
+              <video id="before-video" class="preview-video" muted playsinline controls></video>
+              <!-- Watermark detect box for Tab 1 -->
+              <div id="watermark-detect-box" class="watermark-detect-box hidden" title="Vị trí watermark Gemini phát hiện">
+                <div class="watermark-detect-badge">✦ Vị trí Gemini</div>
+              </div>
+              <!-- Interactive draggable logo overlay box -->
+              <div id="logo-drag-box" class="logo-drag-box hidden" title="Bấm và giữ chuột để di chuyển logo">
+                <img id="logo-drag-img" class="logo-drag-img" alt="" draggable="false"/>
+                <div class="logo-drag-badge">✥ Kéo vị trí logo</div>
+              </div>
+            </div>
+            <div class="img-empty" id="before-empty"><span>Chưa có file</span></div>
+          </div>
+          <div class="img-box" id="box-after">
+            <span class="img-label img-label--after">KẾT QUẢ (SAU)</span>
+            <div class="media-wrap" id="media-wrap-after">
+              <img id="after-img" class="preview-img" alt="Ảnh sau xử lý" draggable="false"/>
+              <video id="after-video" class="preview-video" muted playsinline controls></video>
+            </div>
+            <div class="img-empty" id="after-empty"><span>Chưa xử lý</span></div>
+          </div>
+        </div>
+
+        <!-- Single views -->
+        <div class="single-view hidden" id="view-before">
+          <img id="before-img-2" class="preview-img preview-img--full" alt="Ảnh gốc" draggable="false"/>
+          <video id="before-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
+          <div class="img-empty" id="before-empty-2"><span>Chưa có file</span></div>
+        </div>
+        <div class="single-view hidden" id="view-after">
+          <img id="after-img-2" class="preview-img preview-img--full" alt="Ảnh sau xử lý" draggable="false"/>
+          <video id="after-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
+          <div class="img-empty" id="after-empty-2"><span>Chưa xử lý</span></div>
+        </div>
+      </div><!-- /panel-right-compare -->
+
+      <!-- Sub-panel B: Conversion Dashboard & Output Queue (For Tab 3) -->
+      <div class="convert-dashboard hidden" id="panel-right-convert">
+        <div class="dashboard-header">
+          <div class="dash-title-block">
+            <h2 class="dash-title">Danh sách chuyển đổi</h2>
+            <p class="dash-desc">Quản lý hàng đợi chuyển đổi file Media và Tài liệu Word sang PDF</p>
+          </div>
+          <div class="dash-metrics">
+            <div class="metric-card">
+              <span class="metric-num" id="metric-total">0</span>
+              <span class="metric-label">Tổng số file</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-num text-success" id="metric-done">0</span>
+              <span class="metric-label">Thành công</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-num text-warning" id="metric-pending">0</span>
+              <span class="metric-label">Đang chờ</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queue Table Container -->
+        <div class="conv-table-container">
+          <div class="conv-empty-state" id="conv-empty-state">
+            <div class="empty-icon-wrap">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="empty-title">Chưa có file nào trong hàng đợi</h3>
+            <p class="empty-desc">Kéo thả file Media (Video, Audio, Ảnh) hoặc Tài liệu Word (.docx/.doc) vào khung bên trái để bắt đầu chuyển đổi.</p>
+          </div>
+
+          <div class="conv-queue-items hidden" id="conv-queue-items">
+            <!-- Dynamically populated rows -->
+          </div>
+        </div>
+      </div><!-- /panel-right-convert -->
 
     </section>
   </main>

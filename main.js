@@ -307,7 +307,169 @@ ipcMain.handle('process-video', async (event, { sourcePath, buffer, watermarkRec
   });
 });
 
+// ── IPC: Select files for conversion ─────────────────────────────────────────
+ipcMain.handle('select-convert-files', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Chọn file chuyển đổi (Đa phương tiện hoặc Tài liệu Word)',
+    filters: [
+      { name: 'Tất cả file hỗ trợ', extensions: ['docx', 'doc', 'png', 'jpg', 'jpeg', 'webp', 'ico', 'mp4', 'webm', 'mov', 'avi', 'mkv', 'gif', 'mp3', 'wav', 'aac'] },
+      { name: 'Tài liệu Word', extensions: ['docx', 'doc'] },
+      { name: 'Video', extensions: ['mp4', 'webm', 'mov', 'avi', 'mkv', 'gif'] },
+      { name: 'Hình ảnh', extensions: ['png', 'jpg', 'jpeg', 'webp', 'ico'] },
+      { name: 'Âm thanh', extensions: ['mp3', 'wav', 'aac', 'm4a', 'flac'] }
+    ],
+    properties: ['openFile', 'multiSelections']
+  });
+  return result;
+});
 
+// ── IPC: Convert Word (.docx, .doc) to PDF natively via Word COM ─────────────
+ipcMain.handle('convert-docx-to-pdf', async (event, { sourcePath, buffer, originalName }) => {
+  const os = require('os');
+  const fs = require('fs');
+  const { execFile } = require('child_process');
+
+  const tmpDir = os.tmpdir();
+  const ts = Date.now();
+  let inputDocPath = sourcePath && fs.existsSync(sourcePath) ? sourcePath : null;
+  let tempCreated = false;
+
+  if (!inputDocPath) {
+    const ext = (originalName && originalName.endsWith('.doc')) ? '.doc' : '.docx';
+    inputDocPath = path.join(tmpDir, `doc_in_${ts}${ext}`);
+    fs.writeFileSync(inputDocPath, Buffer.from(buffer));
+    tempCreated = true;
+  }
+
+  const outputPdfPath = path.join(tmpDir, `doc_out_${ts}.pdf`);
+
+  const psScript = `
+$ErrorActionPreference = 'Stop'
+try {
+  $word = New-Object -ComObject Word.Application
+  $word.Visible = $false
+  $doc = $word.Documents.Open('${inputDocPath.replace(/'/g, "''")}')
+  $doc.SaveAs([ref]'${outputPdfPath.replace(/'/g, "''")}', [ref]17)
+  $doc.Close()
+  $word.Quit()
+  [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+  Write-Output 'OK'
+} catch {
+  Write-Error $_.Exception.Message
+  exit 1
+}
+`;
+
+  return new Promise((resolve) => {
+    execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript], { timeout: 60000 }, (error, stdout, stderr) => {
+      if (tempCreated) {
+        try { fs.unlinkSync(inputDocPath); } catch (_) {}
+      }
+
+      if (error || !fs.existsSync(outputPdfPath)) {
+        const errMsg = stderr || error?.message || 'Không thể chuyển đổi Word sang PDF. Vui lòng đảm bảo Microsoft Word đã được cài đặt trên máy.';
+        resolve({ success: false, error: errMsg });
+      } else {
+        try {
+          const pdfBuffer = fs.readFileSync(outputPdfPath);
+          try { fs.unlinkSync(outputPdfPath); } catch (_) {}
+          resolve({ success: true, buffer: pdfBuffer });
+        } catch (readErr) {
+          resolve({ success: false, error: readErr.message });
+        }
+      }
+    });
+  });
+});
+
+// ── IPC: Convert media formats via native FFmpeg ─────────────────────────────
+ipcMain.handle('convert-media', async (event, { sourcePath, buffer, targetFormat, options = {} }) => {
+  const os = require('os');
+  const fs = require('fs');
+  const { spawn } = require('child_process');
+  const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+  const ffmpegPath = ffmpegInstaller.path;
+
+  const tmpDir = os.tmpdir();
+  const ts = Date.now();
+  const fmt = (targetFormat || 'mp4').toLowerCase().replace(/^\./, '');
+
+  let inputPath = sourcePath && fs.existsSync(sourcePath) ? sourcePath : null;
+  let tempCreated = false;
+  if (!inputPath) {
+    inputPath = path.join(tmpDir, `conv_in_${ts}_media`);
+    fs.writeFileSync(inputPath, Buffer.from(buffer));
+    tempCreated = true;
+  }
+
+  const outputPath = path.join(tmpDir, `conv_out_${ts}.${fmt}`);
+  let args = ['-y', '-i', inputPath];
+
+  // Configure format-specific conversion flags
+  if (fmt === 'mp4') {
+    const scale = options.resolution ? `scale=${options.resolution}` : null;
+    const fps = options.fps ? `fps=${options.fps}` : null;
+    const vfParts = [scale, fps].filter(Boolean);
+    if (vfParts.length) args.push('-vf', vfParts.join(','));
+    args.push('-c:v', 'libx264', '-crf', options.crf ? String(options.crf) : '20', '-preset', 'fast', '-pix_fmt', 'yuv420p');
+    args.push('-c:a', 'aac', '-b:a', '192k');
+  } else if (fmt === 'webm') {
+    const scale = options.resolution ? `scale=${options.resolution}` : null;
+    const fps = options.fps ? `fps=${options.fps}` : null;
+    const vfParts = [scale, fps].filter(Boolean);
+    if (vfParts.length) args.push('-vf', vfParts.join(','));
+    args.push('-c:v', 'libvpx-vp9', '-crf', '30', '-b:v', '0');
+    args.push('-c:a', 'libopus');
+  } else if (fmt === 'gif') {
+    const fps = options.fps || 15;
+    const scaleW = options.scaleWidth || 480;
+    const filter = `[0:v]fps=${fps},scale=${scaleW}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`;
+    args.push('-vf', filter);
+  } else if (fmt === 'mp3') {
+    const bitrate = options.audioBitrate || '192k';
+    args.push('-vn', '-c:a', 'libmp3lame', '-b:a', bitrate);
+  } else if (fmt === 'wav') {
+    args.push('-vn', '-c:a', 'pcm_s16le');
+  } else if (fmt === 'aac' || fmt === 'm4a') {
+    const bitrate = options.audioBitrate || '192k';
+    args.push('-vn', '-c:a', 'aac', '-b:a', bitrate);
+  } else if (fmt === 'ico') {
+    args.push('-vf', 'scale=256:256');
+  } else if (fmt === 'jpg' || fmt === 'jpeg') {
+    const q = options.quality ? Math.round((100 - options.quality) / 3.3) : 2;
+    args.push('-q:v', String(Math.max(1, Math.min(31, q))));
+  } else if (fmt === 'webp') {
+    const q = options.quality || 85;
+    args.push('-quality', String(q));
+  }
+
+  args.push(outputPath);
+
+  return new Promise((resolve) => {
+    let stderr = '';
+    const proc = spawn(ffmpegPath, args, { windowsHide: true });
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('close', (code) => {
+      if (tempCreated) { try { fs.unlinkSync(inputPath); } catch (_) {} }
+      if (code === 0 && fs.existsSync(outputPath)) {
+        try {
+          const outBuf = fs.readFileSync(outputPath);
+          try { fs.unlinkSync(outputPath); } catch (_) {}
+          resolve({ success: true, buffer: outBuf, format: fmt });
+        } catch (rErr) {
+          resolve({ success: false, error: rErr.message });
+        }
+      } else {
+        try { fs.unlinkSync(outputPath); } catch (_) {}
+        resolve({ success: false, error: `Lỗi chuyển đổi (code ${code}): ${stderr.slice(-300)}` });
+      }
+    });
+    proc.on('error', (err) => {
+      if (tempCreated) { try { fs.unlinkSync(inputPath); } catch (_) {} }
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(() => {

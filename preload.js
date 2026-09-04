@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   processVideo: (options) => ipcRenderer.invoke('process-video', options),
   overlayLogoVideo: (options) => ipcRenderer.invoke('overlay-logo-video', options),
 
+  // Conversion APIs (Media & Documents)
+  convertMedia: (options) => ipcRenderer.invoke('convert-media', options),
+  convertDocxToPdf: (options) => ipcRenderer.invoke('convert-docx-to-pdf', options),
+  selectConvertFiles: () => ipcRenderer.invoke('select-convert-files'),
+
   // Listen for "Open Image" triggered from native menu
   onOpenFiles: (callback) => ipcRenderer.on('open-files', (_event, filePaths) => callback(filePaths)),
 });

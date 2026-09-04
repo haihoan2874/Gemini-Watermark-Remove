@@ -12,7 +12,10 @@ window.addEventListener('paste', e => {
   if (!blob) return;
   const file = new File([blob], `screenshot_${Date.now()}.png`, { type: 'image/png' });
   const isLogoTab = document.getElementById('mtab-logo')?.classList.contains('active');
-  if (isLogoTab) {
+  const isConvertTab = document.getElementById('mtab-convert')?.classList.contains('active');
+  if (isConvertTab) {
+    window.dispatchEvent(new CustomEvent('paste-file-convert', { detail: file }));
+  } else if (isLogoTab) {
     window.dispatchEvent(new CustomEvent('paste-image-logo', { detail: file }));
   } else {
     window.dispatchEvent(new CustomEvent('paste-image-remover', { detail: file }));
@@ -1005,28 +1008,41 @@ window.addEventListener('paste', e => {
   setupVideoSync(afterVideo2, beforeVideo2);
 
   // ── Main tab switcher ──────────────────────────────────────────────────────
-  const mtabRemove = document.getElementById('mtab-remove');
-  const mtabLogo   = document.getElementById('mtab-logo');
-  const tcRemove   = document.getElementById('tc-remove');
-  const tcLogo     = document.getElementById('tc-logo');
+  const mtabRemove  = document.getElementById('mtab-remove');
+  const mtabLogo    = document.getElementById('mtab-logo');
+  const mtabConvert = document.getElementById('mtab-convert');
+  const tcRemove    = document.getElementById('tc-remove');
+  const tcLogo      = document.getElementById('tc-logo');
+  const tcConvert   = document.getElementById('tc-convert');
+  const panelRightCompare = document.getElementById('panel-right-compare');
+  const panelRightConvert = document.getElementById('panel-right-convert');
 
   function switchMainTab(tab) {
+    [mtabRemove, mtabLogo, mtabConvert].forEach(b => b?.classList.remove('active'));
+    [tcRemove, tcLogo, tcConvert].forEach(c => c?.classList.add('hidden'));
+
     if (tab === 'logo') {
-      mtabRemove.classList.remove('active');
-      mtabLogo.classList.add('active');
-      tcRemove.classList.add('hidden');
-      tcLogo.classList.remove('hidden');
+      mtabLogo?.classList.add('active');
+      tcLogo?.classList.remove('hidden');
+      panelRightCompare?.classList.remove('hidden');
+      panelRightConvert?.classList.add('hidden');
+    } else if (tab === 'convert') {
+      mtabConvert?.classList.add('active');
+      tcConvert?.classList.remove('hidden');
+      panelRightCompare?.classList.add('hidden');
+      panelRightConvert?.classList.remove('hidden');
     } else {
-      mtabLogo.classList.remove('active');
-      mtabRemove.classList.add('active');
-      tcLogo.classList.add('hidden');
-      tcRemove.classList.remove('hidden');
+      mtabRemove?.classList.add('active');
+      tcRemove?.classList.remove('hidden');
+      panelRightCompare?.classList.remove('hidden');
+      panelRightConvert?.classList.add('hidden');
     }
     window.dispatchEvent(new CustomEvent('tab-switched', { detail: tab }));
   }
 
-  mtabRemove.addEventListener('click', () => switchMainTab('remove'));
-  mtabLogo.addEventListener('click',   () => switchMainTab('logo'));
+  mtabRemove?.addEventListener('click', () => switchMainTab('remove'));
+  mtabLogo?.addEventListener('click',   () => switchMainTab('logo'));
+  mtabConvert?.addEventListener('click', () => switchMainTab('convert'));
 
 })();
 
@@ -2035,6 +2051,575 @@ window.addEventListener('paste', e => {
       if (logoDragBox) logoDragBox.classList.add('hidden');
     }
   });
+
+})();
+
+// ── Tab 3: Media & Document Converter Module (Independent) ────────────────────
+(() => {
+  const isElectron = typeof window.electronAPI !== 'undefined';
+
+  // DOM elements
+  const dropzone      = document.getElementById('convert-dropzone');
+  const fileInput     = document.getElementById('convert-file-input');
+  const czIdle        = document.getElementById('cz-idle');
+  const czLoaded      = document.getElementById('cz-loaded');
+  const czName        = document.getElementById('cz-name');
+  const btnRun        = document.getElementById('btn-convert-run');
+  const btnSaveAll    = document.getElementById('btn-convert-save-all');
+  const btnReset      = document.getElementById('btn-convert-reset');
+  const statusDot     = document.getElementById('conv-status-dot');
+  const statusMsg     = document.getElementById('conv-status-msg');
+  const batchProgress = document.getElementById('conv-batch-progress');
+  const progFill      = document.getElementById('conv-prog-fill');
+  const progLabel     = document.getElementById('conv-prog-label');
+  const progPercent   = document.getElementById('conv-prog-percent');
+
+  // Metrics
+  const metricTotal   = document.getElementById('metric-total');
+  const metricDone    = document.getElementById('metric-done');
+  const metricPending = document.getElementById('metric-pending');
+
+  // Dashboard table
+  const emptyState    = document.getElementById('conv-empty-state');
+  const queueItemsEl  = document.getElementById('conv-queue-items');
+
+  // Category filters
+  const catPills      = document.querySelectorAll('.cat-pill');
+  const chipGroups    = {
+    doc:   document.getElementById('grp-doc'),
+    video: document.getElementById('grp-video'),
+    audio: document.getElementById('grp-audio'),
+    image: document.getElementById('grp-image')
+  };
+
+  // Format chips & options
+  const formatChips   = document.querySelectorAll('.format-chip');
+  const optBlocks     = {
+    video: document.getElementById('opt-video'),
+    gif:   document.getElementById('opt-gif'),
+    audio: document.getElementById('opt-audio'),
+    image: document.getElementById('opt-image'),
+    doc:   document.getElementById('opt-doc')
+  };
+
+  const rngImgQuality = document.getElementById('rng-img-quality');
+  const valImgQuality = document.getElementById('val-img-quality');
+
+  // State
+  let convertQueue = []; // [{ id, file, name, size, type, ext, targetFormat, status: 'pending'|'processing'|'done'|'error', errorMsg, resultBlob, outputPath }]
+  let activeFormat = 'mp4';
+  let activeType   = 'video';
+  let isConverting = false;
+
+  function setStatus(type, msg) {
+    if (!statusDot || !statusMsg) return;
+    statusDot.className = 'status-dot';
+    if (type === 'ok')   statusDot.classList.add('ok');
+    if (type === 'busy') statusDot.classList.add('busy');
+    if (type === 'err')  statusDot.classList.add('err');
+    statusMsg.textContent = msg;
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function getFileCategory(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    if (['docx', 'doc'].includes(ext)) return 'doc';
+    if (['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'flv'].includes(ext)) return 'video';
+    if (['png', 'jpg', 'jpeg', 'webp', 'ico', 'bmp', 'gif', 'svg'].includes(ext)) return 'image';
+    if (['mp3', 'wav', 'aac', 'm4a', 'flac', 'ogg', 'wma'].includes(ext)) return 'audio';
+    return 'other';
+  }
+
+  function guessMimeType(fmt) {
+    const map = {
+      pdf: 'application/pdf',
+      mp4: 'video/mp4',
+      webm: 'video/webm',
+      gif: 'image/gif',
+      mp3: 'audio/mpeg',
+      wav: 'audio/wav',
+      aac: 'audio/aac',
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      webp: 'image/webp',
+      ico: 'image/x-icon'
+    };
+    return map[fmt.toLowerCase()] || 'application/octet-stream';
+  }
+
+  // ── Format Selection ────────────────────────────────────────────────────────
+  function setTargetFormat(format, type) {
+    activeFormat = format.toLowerCase();
+    activeType = type;
+
+    formatChips.forEach(c => {
+      c.classList.toggle('active', c.dataset.format === activeFormat);
+    });
+
+    // Hide all option blocks
+    Object.values(optBlocks).forEach(b => b?.classList.add('hidden'));
+
+    if (activeFormat === 'mp4' || activeFormat === 'webm') {
+      optBlocks.video?.classList.remove('hidden');
+    } else if (activeFormat === 'gif') {
+      optBlocks.gif?.classList.remove('hidden');
+    } else if (['mp3', 'wav', 'aac'].includes(activeFormat)) {
+      optBlocks.audio?.classList.remove('hidden');
+    } else if (['png', 'jpg', 'webp', 'ico'].includes(activeFormat)) {
+      optBlocks.image?.classList.remove('hidden');
+    } else if (activeFormat === 'pdf') {
+      optBlocks.doc?.classList.remove('hidden');
+    }
+
+    // Update target format for pending items in queue
+    convertQueue.forEach(item => {
+      if (item.status === 'pending') {
+        item.targetFormat = activeFormat;
+      }
+    });
+
+    renderQueueTable();
+  }
+
+  formatChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      setTargetFormat(chip.dataset.format, chip.dataset.type);
+    });
+  });
+
+  // Category filter buttons
+  catPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      catPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const cat = pill.dataset.cat;
+
+      if (cat === 'all') {
+        Object.values(chipGroups).forEach(g => g && (g.style.display = 'flex'));
+      } else if (cat === 'media') {
+        chipGroups.doc && (chipGroups.doc.style.display = 'none');
+        chipGroups.image && (chipGroups.image.style.display = 'none');
+        chipGroups.video && (chipGroups.video.style.display = 'flex');
+        chipGroups.audio && (chipGroups.audio.style.display = 'flex');
+        if (activeType !== 'video' && activeType !== 'audio') setTargetFormat('mp4', 'video');
+      } else if (cat === 'doc') {
+        chipGroups.video && (chipGroups.video.style.display = 'none');
+        chipGroups.audio && (chipGroups.audio.style.display = 'none');
+        chipGroups.image && (chipGroups.image.style.display = 'none');
+        chipGroups.doc && (chipGroups.doc.style.display = 'flex');
+        setTargetFormat('pdf', 'doc');
+      } else if (cat === 'image') {
+        chipGroups.doc && (chipGroups.doc.style.display = 'none');
+        chipGroups.video && (chipGroups.video.style.display = 'none');
+        chipGroups.audio && (chipGroups.audio.style.display = 'none');
+        chipGroups.image && (chipGroups.image.style.display = 'flex');
+        setTargetFormat('webp', 'image');
+      }
+    });
+  });
+
+  // Image quality range
+  if (rngImgQuality && valImgQuality) {
+    rngImgQuality.addEventListener('input', () => {
+      valImgQuality.textContent = `${rngImgQuality.value}%`;
+    });
+  }
+
+  // ── File Ingestion ──────────────────────────────────────────────────────────
+  function addFilesToQueue(files) {
+    if (!files || !files.length) return;
+    let hasDoc = false;
+    let hasVideo = false;
+    let hasAudio = false;
+    let hasImage = false;
+
+    Array.from(files).forEach(f => {
+      // Prevent duplicates in queue
+      if (convertQueue.some(item => item.name === f.name && item.size === f.size)) return;
+
+      const cat = getFileCategory(f.name);
+      if (cat === 'doc')   hasDoc = true;
+      if (cat === 'video') hasVideo = true;
+      if (cat === 'audio') hasAudio = true;
+      if (cat === 'image') hasImage = true;
+
+      // Smart target format per file
+      let targetFmt = activeFormat;
+      if (cat === 'doc') targetFmt = 'pdf';
+      else if (cat === 'video' && activeType === 'doc') targetFmt = 'mp4';
+      else if (cat === 'image' && activeType === 'doc') targetFmt = 'webp';
+
+      convertQueue.push({
+        id: 'cv_' + Math.random().toString(36).slice(2, 9),
+        file: f,
+        name: f.name,
+        size: f.size,
+        ext: f.name.split('.').pop().toLowerCase(),
+        category: cat,
+        targetFormat: targetFmt,
+        status: 'pending',
+        errorMsg: '',
+        resultBlob: null
+      });
+    });
+
+    // Auto-select smart format if category demands it
+    if (hasDoc && !hasVideo && !hasImage && !hasAudio) {
+      setTargetFormat('pdf', 'doc');
+      const docPill = document.getElementById('cat-doc');
+      if (docPill) docPill.click();
+    } else if (hasVideo && !hasDoc) {
+      if (activeType === 'doc') setTargetFormat('mp4', 'video');
+    }
+
+    updateDropzoneUI();
+    renderQueueTable();
+    updateMetrics();
+
+    btnRun.disabled = convertQueue.length === 0;
+    setStatus('ok', `Đã thêm ${convertQueue.length} file vào hàng đợi`);
+  }
+
+  function updateDropzoneUI() {
+    if (convertQueue.length > 0) {
+      czIdle.classList.add('hidden');
+      czLoaded.classList.remove('hidden');
+      czName.textContent = `${convertQueue.length} file sẵn sàng`;
+    } else {
+      czIdle.classList.remove('hidden');
+      czLoaded.classList.add('hidden');
+      czName.textContent = '';
+    }
+  }
+
+  function updateMetrics() {
+    if (!metricTotal || !metricDone || !metricPending) return;
+    const total = convertQueue.length;
+    const done = convertQueue.filter(i => i.status === 'done').length;
+    const pending = convertQueue.filter(i => i.status === 'pending' || i.status === 'processing').length;
+
+    metricTotal.textContent = String(total);
+    metricDone.textContent = String(done);
+    metricPending.textContent = String(pending);
+  }
+
+  // ── Render Queue Table / Cards ──────────────────────────────────────────────
+  function renderQueueTable() {
+    if (!queueItemsEl || !emptyState) return;
+
+    if (convertQueue.length === 0) {
+      emptyState.classList.remove('hidden');
+      queueItemsEl.classList.add('hidden');
+      queueItemsEl.innerHTML = '';
+      return;
+    }
+
+    emptyState.classList.add('hidden');
+    queueItemsEl.classList.remove('hidden');
+    queueItemsEl.innerHTML = '';
+
+    convertQueue.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'conv-row-card';
+
+      // Badge class
+      const badgeClass = item.category === 'doc' ? 'badge-doc' :
+                         item.category === 'video' ? 'badge-video' :
+                         item.category === 'audio' ? 'badge-audio' : 'badge-image';
+
+      // Status badge text
+      let statusHtml = '<span class="conv-status-tag pending">Chờ xử lý</span>';
+      if (item.status === 'processing') {
+        statusHtml = '<span class="conv-status-tag processing">Đang chuyển...</span>';
+      } else if (item.status === 'done') {
+        statusHtml = '<span class="conv-status-tag done">✓ Hoàn tất</span>';
+      } else if (item.status === 'error') {
+        statusHtml = `<span class="conv-status-tag error" title="${item.errorMsg || 'Lỗi'}">✕ Lỗi</span>`;
+      }
+
+      // Action button
+      let actionBtnHtml = '';
+      if (item.status === 'done' && item.resultBlob) {
+        actionBtnHtml = `<button class="btn-row-action btn-save-item" data-id="${item.id}">Lưu file</button>`;
+      } else if (item.status === 'pending') {
+        actionBtnHtml = `<button class="btn-row-action btn-del-item" data-id="${item.id}" title="Xóa khỏi hàng đợi">✕</button>`;
+      }
+
+      card.innerHTML = `
+        <div class="conv-row-left">
+          <div class="conv-type-badge ${badgeClass}">
+            ${item.ext.toUpperCase()}
+          </div>
+          <div class="conv-file-meta">
+            <span class="conv-filename" title="${item.name}">${item.name}</span>
+            <div class="conv-submeta">
+              <span>${formatBytes(item.size)}</span>
+              <span class="conv-arrow">→</span>
+              <span class="conv-target-pill">${item.targetFormat.toUpperCase()}</span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-row-right">
+          ${statusHtml}
+          ${actionBtnHtml}
+        </div>
+      `;
+
+      // Event listener for item save
+      const btnSaveItem = card.querySelector('.btn-save-item');
+      if (btnSaveItem) {
+        btnSaveItem.addEventListener('click', () => saveSingleItem(item));
+      }
+
+      // Event listener for item delete
+      const btnDelItem = card.querySelector('.btn-del-item');
+      if (btnDelItem) {
+        btnDelItem.addEventListener('click', () => {
+          convertQueue = convertQueue.filter(q => q.id !== item.id);
+          updateDropzoneUI();
+          renderQueueTable();
+          updateMetrics();
+          btnRun.disabled = convertQueue.length === 0;
+        });
+      }
+
+      queueItemsEl.appendChild(card);
+    });
+  }
+
+  // ── Drag & Drop & Click Handling ────────────────────────────────────────────
+  if (dropzone) {
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+      if (e.dataTransfer.files && e.dataTransfer.files.length) {
+        const files = Array.from(e.dataTransfer.files);
+        files.forEach(f => { if (f.path) f._sourcePath = f.path; });
+        addFilesToQueue(files);
+      }
+    });
+
+    dropzone.addEventListener('click', async (e) => {
+      // If native Electron, show native multi-file dialog
+      if (isElectron) {
+        e.preventDefault();
+        const res = await window.electronAPI.selectConvertFiles();
+        if (!res.canceled && res.filePaths && res.filePaths.length) {
+          const files = await Promise.all(res.filePaths.map(async p => {
+            const url = `file://${p.replace(/\\/g, '/')}`;
+            const resp = await fetch(url);
+            const blob = await resp.blob();
+            const name = p.split(/[\\/]/).pop();
+            const f = new File([blob], name, { type: blob.type });
+            f._sourcePath = p;
+            return f;
+          }));
+          addFilesToQueue(files);
+        }
+      }
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', e => {
+      if (e.target.files && e.target.files.length) {
+        addFilesToQueue(e.target.files);
+      }
+    });
+  }
+
+  // Listen for paste event in convert tab
+  window.addEventListener('paste-file-convert', e => {
+    if (e.detail) addFilesToQueue([e.detail]);
+  });
+
+  // ── Conversion Execution ────────────────────────────────────────────────────
+  if (btnRun) {
+    btnRun.addEventListener('click', async () => {
+      if (isConverting || !convertQueue.length) return;
+
+      isConverting = true;
+      btnRun.disabled = true;
+      btnReset.disabled = true;
+      btnSaveAll.classList.add('hidden');
+      batchProgress.classList.remove('hidden');
+      setStatus('busy', 'Đang thực hiện chuyển đổi...');
+
+      let successCount = 0;
+      for (let i = 0; i < convertQueue.length; i++) {
+        const item = convertQueue[i];
+        if (item.status === 'done') {
+          successCount++;
+          continue;
+        }
+
+        item.status = 'processing';
+        renderQueueTable();
+        updateMetrics();
+
+        const pct = Math.round((i / convertQueue.length) * 100);
+        progFill.style.width = `${pct}%`;
+        progPercent.textContent = `${pct}%`;
+        progLabel.textContent = `(${i + 1}/${convertQueue.length}) Đang chuyển đổi: ${item.name}...`;
+
+        try {
+          const buf = await item.file.arrayBuffer();
+          const ext = item.file.name.split('.').pop().toLowerCase();
+
+          if (item.targetFormat === 'pdf' && (ext === 'docx' || ext === 'doc')) {
+            // Word to PDF via native Word COM
+            const res = await window.electronAPI.convertDocxToPdf({
+              sourcePath: item.file._sourcePath || null,
+              buffer: buf,
+              originalName: item.file.name
+            });
+            if (!res.success) throw new Error(res.error || 'Lỗi chuyển đổi Word sang PDF');
+            item.resultBlob = new Blob([res.buffer], { type: 'application/pdf' });
+          } else {
+            // Media conversion via FFmpeg
+            const opts = {};
+            if (item.targetFormat === 'mp4' || item.targetFormat === 'webm') {
+              opts.resolution = document.getElementById('sel-video-res')?.value || '';
+              opts.fps = document.getElementById('sel-video-fps')?.value || '';
+              opts.crf = document.getElementById('sel-video-crf')?.value || '22';
+            } else if (item.targetFormat === 'gif') {
+              opts.fps = Number(document.getElementById('sel-gif-fps')?.value || 15);
+              opts.scaleWidth = Number(document.getElementById('sel-gif-scale')?.value || 480);
+            } else if (['mp3', 'wav', 'aac'].includes(item.targetFormat)) {
+              opts.audioBitrate = document.getElementById('sel-audio-bitrate')?.value || '192k';
+            } else if (['jpg', 'jpeg', 'webp'].includes(item.targetFormat)) {
+              opts.quality = Number(rngImgQuality?.value || 85);
+            }
+
+            const res = await window.electronAPI.convertMedia({
+              sourcePath: item.file._sourcePath || null,
+              buffer: buf,
+              targetFormat: item.targetFormat,
+              options: opts
+            });
+
+            if (!res.success) throw new Error(res.error || 'Lỗi chuyển đổi media');
+            item.resultBlob = new Blob([res.buffer], { type: guessMimeType(item.targetFormat) });
+          }
+
+          item.status = 'done';
+          successCount++;
+        } catch (err) {
+          console.error(err);
+          item.status = 'error';
+          item.errorMsg = err.message || 'Lỗi chuyển đổi';
+        }
+
+        renderQueueTable();
+        updateMetrics();
+      }
+
+      progFill.style.width = '100%';
+      progPercent.textContent = '100%';
+      progLabel.textContent = 'Hoàn tất toàn bộ hàng đợi!';
+      setStatus('ok', `✓ Đã chuyển đổi thành công ${successCount}/${convertQueue.length} file`);
+
+      isConverting = false;
+      btnRun.disabled = false;
+      btnReset.disabled = false;
+      if (successCount > 0) btnSaveAll.classList.remove('hidden');
+    });
+  }
+
+  // ── Save Individual File ────────────────────────────────────────────────────
+  async function saveSingleItem(item) {
+    if (!item.resultBlob) return;
+    const base = item.name.replace(/\.[^.]+$/, '');
+    const outName = `${base}.${item.targetFormat}`;
+
+    if (isElectron) {
+      const r = await window.electronAPI.saveFile({
+        defaultName: outName,
+        mimeType: item.resultBlob.type
+      });
+      if (!r.canceled && r.filePath) {
+        const buf = await item.resultBlob.arrayBuffer();
+        await window.electronAPI.writeFile(r.filePath, buf);
+        setStatus('ok', '✓ Đã lưu: ' + r.filePath.split(/[\\/]/).pop());
+        window.electronAPI.showInFolder(r.filePath);
+      }
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(item.resultBlob);
+      a.download = outName;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+  }
+
+  // ── Save All Completed Files to Folder ──────────────────────────────────────
+  if (btnSaveAll) {
+    btnSaveAll.addEventListener('click', async () => {
+      const completed = convertQueue.filter(i => i.status === 'done' && i.resultBlob);
+      if (!completed.length) return;
+
+      btnSaveAll.disabled = true;
+      btnSaveAll.textContent = 'Đang lưu...';
+
+      try {
+        if (isElectron) {
+          const res = await window.electronAPI.selectFolder();
+          if (!res.canceled && res.filePaths && res.filePaths.length > 0) {
+            const folder = res.filePaths[0];
+            let savedCount = 0;
+            for (const item of completed) {
+              const base = item.name.replace(/\.[^.]+$/, '');
+              const outPath = `${folder}\\${base}.${item.targetFormat}`.replace(/\\\\/g, '\\');
+              const buf = await item.resultBlob.arrayBuffer();
+              await window.electronAPI.writeFile(outPath, buf);
+              savedCount++;
+            }
+            setStatus('ok', `✓ Đã lưu ${savedCount} file vào thư mục`);
+            window.electronAPI.showInFolder(folder);
+          }
+        } else {
+          for (const item of completed) {
+            const base = item.name.replace(/\.[^.]+$/, '');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(item.resultBlob);
+            a.download = `${base}.${item.targetFormat}`;
+            a.click();
+            await new Promise(r => setTimeout(r, 250));
+            URL.revokeObjectURL(a.href);
+          }
+        }
+      } catch (err) {
+        setStatus('err', 'Lỗi khi lưu thư mục: ' + err.message);
+      }
+
+      btnSaveAll.disabled = false;
+      btnSaveAll.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg> Tải tất cả (Thư mục)`;
+    });
+  }
+
+  // ── Reset Queue ─────────────────────────────────────────────────────────────
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      convertQueue = [];
+      updateDropzoneUI();
+      renderQueueTable();
+      updateMetrics();
+      batchProgress?.classList.add('hidden');
+      btnSaveAll?.classList.add('hidden');
+      btnRun.disabled = true;
+      setStatus('ok', 'Đã xóa toàn bộ hàng đợi');
+    });
+  }
 
 })();
 
