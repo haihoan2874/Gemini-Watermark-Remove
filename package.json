@@ -9,7 +9,8 @@
     "start": "electron .",
     "dev": "electron . --enable-logging",
     "build": "electron-packager . \"Gemini Watermark Remover\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent --ignore=convert-icon.mjs --ignore=create-ico.js --asar",
-    "build:dir": "electron-packager . \"Gemini Watermark Remover\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent"
+    "build:dir": "electron-packager . \"Gemini Watermark Remover\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent",
+    "dist": "electron-builder --win"
   },
   "devDependencies": {
     "@electron/packager": "^18.4.4",

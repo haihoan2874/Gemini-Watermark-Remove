@@ -2,6 +2,23 @@
  * app.js — Main renderer logic
  * Handles drag/drop, processing pipeline, custom logo overlay, tab switching, download.
  */
+// ── Global Clipboard Paste (Ctrl + V) ────────────────────────────────────────
+window.addEventListener('paste', e => {
+  if (!e.clipboardData || !e.clipboardData.items) return;
+  const items = Array.from(e.clipboardData.items);
+  const item = items.find(it => it.type && it.type.startsWith('image/'));
+  if (!item) return;
+  const blob = item.getAsFile();
+  if (!blob) return;
+  const file = new File([blob], `screenshot_${Date.now()}.png`, { type: 'image/png' });
+  const isLogoTab = document.getElementById('mtab-logo')?.classList.contains('active');
+  if (isLogoTab) {
+    window.dispatchEvent(new CustomEvent('paste-image-logo', { detail: file }));
+  } else {
+    window.dispatchEvent(new CustomEvent('paste-image-remover', { detail: file }));
+  }
+});
+
 (() => {
   const isElectron = typeof window.electronAPI !== 'undefined';
 
@@ -23,8 +40,9 @@
   const qProgressTxt = document.getElementById('q-progress-text');
   const overwriteWrap = document.getElementById('overwrite-wrap');
   const chkOverwrite  = document.getElementById('chk-overwrite');
-
-
+  const watermarkDetectBox = document.getElementById('watermark-detect-box');
+  const mediaWrapBefore    = document.getElementById('media-wrap-before');
+  let tab1DetectedRect     = null; // { x, y, w, h, natW, natH, isVideo }
 
   // Preview elements
   const beforeImg  = document.getElementById('before-img');
@@ -155,6 +173,7 @@
         clearAfterVideo();
       });
     }
+    detectAndShowTab1Watermark(files[0], isVideoMode);
 
     // Show file name / count in dropzone
     dzIdle.classList.add('hidden');
@@ -170,7 +189,7 @@
         const li = document.createElement('li');
         li.id = `qi-${i}`;
         if (i === 0) li.classList.add('active');
-        const icon = isVideoFile(f) ? '🎬' : 'ðŸ–¼ï¸';
+        const icon = isVideoFile(f) ? '🎬' : '🖼️';
         li.innerHTML = `<span class="q-icon">${icon}</span> <span class="q-name">${f.name}</span><span class="q-status" id="qs-${i}">—</span>`;
 
         li.addEventListener('click', () => {
@@ -179,6 +198,7 @@
 
           currentFile = f;
           isVideoMode = isVideoFile(f);
+          detectAndShowTab1Watermark(f, isVideoMode);
 
           if (isVideoMode) {
             setBeforeVideo(f);
@@ -229,6 +249,7 @@
 
   // ── Process ───────────────────────────────────────────────────────────────
   btnProcess.addEventListener('click', async () => {
+    hideTab1WatermarkBox();
     if (fileQueue.length > 1) await processBatch(fileQueue);
     else if (isVideoMode) await processVideoFile(currentFile);
     else await processSingle(currentFile);
@@ -245,9 +266,7 @@
       const url = URL.createObjectURL(blob);
       setAfterImage(url);
 
-      if (logoSettings.enabled && customLogo) {
-        setStatus('ok', '✓ Đã xử lý & chèn logo thương hiệu');
-      } else if (detection.found) {
+      if (detection.found) {
         setStatus('ok', '✓ Watermark đã được xử lý');
       } else {
         setStatus('warn', 'Không tìm thấy watermark — ảnh giữ nguyên');
@@ -719,6 +738,8 @@
     cleanBlob = null;
     currentFile = null;
     isVideoMode = false;
+    tab1DetectedRect = null;
+    hideTab1WatermarkBox();
 
     dzIdle.classList.remove('hidden');
     dzLoaded.classList.add('hidden');
@@ -758,7 +779,10 @@
   function setBeforeImage(url) {
     [beforeImg, beforeImg2].forEach(img => {
       img.src = url;
-      img.onload = () => img.classList.add('loaded');
+      img.onload = () => {
+        img.classList.add('loaded');
+        renderTab1WatermarkBox();
+      };
       img.classList.remove('hidden');
     });
     [beforeVideo, beforeVideo2].forEach(v => { v.classList.remove('active'); });
@@ -768,6 +792,7 @@
 
   function clearBeforeImage() {
     [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
+    hideTab1WatermarkBox();
   }
 
   function setAfterImage(url) {
@@ -802,6 +827,7 @@
     [beforeVideo, beforeVideo2].forEach(v => {
       v.pause(); v.src = ''; v.classList.remove('active');
     });
+    hideTab1WatermarkBox();
   }
 
   function setAfterVideo(blob) {
@@ -855,6 +881,105 @@
   }
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // ── Tab 1 Watermark detection box preview ───────────────────────────────────
+  function getDefaultGeminiRect(W, H) {
+    const size = (W > 1024 || H > 1024) ? 96 : 48;
+    const margin = (W > 1024 || H > 1024) ? 48 : 24;
+    return { x: Math.max(0, W - size - margin), y: Math.max(0, H - size - margin), w: size, h: size };
+  }
+
+  async function detectAndShowTab1Watermark(file, isVideo) {
+    if (!watermarkDetectBox || !file) return;
+    try {
+      if (isVideo) {
+        const url = URL.createObjectURL(file);
+        const vid = document.createElement('video');
+        vid.src = url;
+        vid.muted = true;
+        await new Promise(r => { vid.onloadedmetadata = r; });
+        const w = vid.videoWidth || 1280;
+        const h = vid.videoHeight || 720;
+        const fc = document.createElement('canvas');
+        fc.width = w; fc.height = h;
+        vid.currentTime = 0;
+        await new Promise(r => { vid.onseeked = r; });
+        fc.getContext('2d').drawImage(vid, 0, 0);
+        const engine = await window.GeminiWatermarkRemover.createWatermarkEngine();
+        const probe = await engine.removeWatermarkFromImage(fc);
+        URL.revokeObjectURL(url);
+        const m = probe?.meta || probe;
+        if (m && m.width > 0 && m.x != null) {
+          tab1DetectedRect = { x: m.x, y: m.y, w: m.width, h: m.height, natW: w, natH: h, isVideo: true };
+        } else {
+          const def = getDefaultGeminiRect(w, h);
+          tab1DetectedRect = { ...def, natW: w, natH: h, isVideo: true };
+        }
+      } else {
+        const dataUrl = await readDataURL(file);
+        const img = new Image();
+        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl; });
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const res = await window.GeminiWatermarkRemover.removeWatermarkFromImage(img);
+        const m = res?.meta || res;
+        if (m && m.width > 0 && m.x != null) {
+          tab1DetectedRect = { x: m.x, y: m.y, w: m.width, h: m.height, natW: w, natH: h, isVideo: false };
+        } else {
+          const def = getDefaultGeminiRect(w, h);
+          tab1DetectedRect = { ...def, natW: w, natH: h, isVideo: false };
+        }
+      }
+      renderTab1WatermarkBox();
+    } catch (_) {
+      hideTab1WatermarkBox();
+    }
+  }
+
+  function renderTab1WatermarkBox() {
+    if (!watermarkDetectBox || !tab1DetectedRect) return;
+    const tcRemove = document.getElementById('tc-remove');
+    if (tcRemove && tcRemove.classList.contains('hidden')) {
+      watermarkDetectBox.classList.add('hidden');
+      return;
+    }
+    const mediaWrap = document.getElementById('media-wrap-before');
+    const mediaEl = tab1DetectedRect.isVideo ? beforeVideo : beforeImg;
+    if (!mediaEl || !mediaWrap) return;
+    const mRect = mediaEl.getBoundingClientRect();
+    const wrapRect = mediaWrap.getBoundingClientRect();
+    if (mRect.width === 0 || mRect.height === 0) {
+      requestAnimationFrame(renderTab1WatermarkBox);
+      return;
+    }
+    const scaleX = mRect.width / tab1DetectedRect.natW;
+    const scaleY = mRect.height / tab1DetectedRect.natH;
+    const boxX = (mRect.left - wrapRect.left) + tab1DetectedRect.x * scaleX;
+    const boxY = (mRect.top  - wrapRect.top)  + tab1DetectedRect.y * scaleY;
+    const boxW = Math.max(20, tab1DetectedRect.w * scaleX);
+    const boxH = Math.max(20, tab1DetectedRect.h * scaleY);
+    watermarkDetectBox.style.left   = `${Math.round(boxX)}px`;
+    watermarkDetectBox.style.top    = `${Math.round(boxY)}px`;
+    watermarkDetectBox.style.width  = `${Math.round(boxW)}px`;
+    watermarkDetectBox.style.height = `${Math.round(boxH)}px`;
+    watermarkDetectBox.classList.remove('hidden');
+  }
+
+  function hideTab1WatermarkBox() {
+    if (watermarkDetectBox) watermarkDetectBox.classList.add('hidden');
+  }
+
+  window.addEventListener('resize', renderTab1WatermarkBox);
+  beforeVideo.addEventListener('loadedmetadata', renderTab1WatermarkBox);
+  window.addEventListener('tab-switched', e => {
+    if (e.detail === 'remove') renderTab1WatermarkBox();
+    else hideTab1WatermarkBox();
+  });
+
+  window.addEventListener('paste-image-remover', e => {
+    handleFiles([e.detail]);
+    setStatus('idle', '📋 Đã dán ảnh từ Clipboard — sẵn sàng xóa watermark');
+  });
 
   // ── Sync Before/After Video Controls ────────────────────────────────────────
   function setupVideoSync(v1, v2) {
@@ -937,6 +1062,11 @@
   const btnApply        = document.getElementById('btn-logo-apply');
   const btnSave         = document.getElementById('btn-logo-save');
   const btnReset        = document.getElementById('btn-logo-reset');
+  const logoQueue       = document.getElementById('logo-queue');
+  const logoQueueList   = document.getElementById('logo-queue-list');
+  const lqProgressBar   = document.getElementById('lq-progress-bar');
+  const lqProgressText  = document.getElementById('lq-progress-text');
+  const btnLogoSaveAll  = document.getElementById('btn-logo-save-all');
 
   // Preview elements
   const beforeImg       = document.getElementById('before-img');
@@ -956,13 +1086,16 @@
   const logoDragImg     = document.getElementById('logo-drag-img');
 
   // State
-  let mediaFile          = null;  // source File
+  let mediaFile          = null;  // currently active source File
+  let mediaFiles         = [];    // batch source Files
+  let currentMediaIdx    = 0;     // index of active file in batch
+  let processedLogoList  = [];    // [{ name, origName, blob, isVideo, sourcePath }]
   let logoImg            = null;  // { img: Image, dataUrl: string, name: string }
   let mediaNatW          = 0;     // natural width of source media
   let mediaNatH          = 0;     // natural height of source media
   let geminiDetectedRect = null;  // { x, y, w, h } in natural coords
   let customLogoRect     = null;  // { x, y, w, h } in natural coords
-  let logoPos            = 'br';  // tl|tc|tr|ml|mc|mr|bl|bc|br|custom
+  let logoPos            = 'br';  // tl|tc|tr|ml|mc|mr|bl|bc|br|custom|gemini
   let resultBlob         = null;
   let logoScale          = 100;
   let logoOpacity        = 100;
@@ -1176,12 +1309,64 @@
   beforeImg.addEventListener('load', updateDragBoxUI);
 
   // ── Media dropzone & Gemini detection ───────────────────────────────────────
+  function applyMediaFiles(files) {
+    if (!files || !files.length) return;
+    mediaFiles = Array.from(files);
+    currentMediaIdx = 0;
+    processedLogoList = [];
+
+    if (mediaFiles.length > 1) {
+      logoQueue.classList.remove('hidden');
+      renderLogoQueue();
+      btnLogoSaveAll.classList.add('hidden');
+      setLogoQueueProgress(0, mediaFiles.length);
+    } else {
+      logoQueue.classList.add('hidden');
+      btnLogoSaveAll.classList.add('hidden');
+    }
+
+    applyMedia(mediaFiles[0]);
+    updateApplyBtn();
+  }
+
+  function renderLogoQueue() {
+    logoQueueList.innerHTML = '';
+    mediaFiles.forEach((f, i) => {
+      const li = document.createElement('li');
+      li.id = `lqi-${i}`;
+      if (i === currentMediaIdx) li.classList.add('active');
+      const icon = isVideoFile(f) ? '🎬' : '🖼️';
+      li.innerHTML = `<span class="q-icon">${icon}</span> <span class="q-name">${f.name}</span><span class="q-status" id="lqs-${i}">—</span>`;
+      li.addEventListener('click', () => {
+        document.querySelectorAll('#logo-queue-list li').forEach(el => el.classList.remove('active'));
+        li.classList.add('active');
+        currentMediaIdx = i;
+        applyMedia(f);
+        const processed = processedLogoList.find(p => p.origName === f.name);
+        if (processed) {
+          resultBlob = processed.blob;
+          showAfterPreview(processed.blob, processed.isVideo);
+          btnSave.disabled = false;
+        }
+      });
+      logoQueueList.appendChild(li);
+    });
+  }
+
+  function setLogoQueueProgress(done, total) {
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    if (lqProgressBar) lqProgressBar.style.width = pct + '%';
+    if (lqProgressText) lqProgressText.textContent = `${done} / ${total}`;
+  }
+
   async function applyMedia(file) {
     mediaFile = file;
     isVideoMode = isVideoFile(file);
     lmIdle.classList.add('hidden');
     lmLoaded.classList.remove('hidden');
-    lmName.textContent = file.name;
+    lmName.textContent = mediaFiles.length > 1
+      ? `${mediaFiles.length} file (${mediaFiles.filter(isVideoFile).length} video, ${mediaFiles.filter(f => !isVideoFile(f)).length} ảnh)`
+      : file.name;
 
     // Reset results
     resultBlob = null;
@@ -1282,11 +1467,29 @@
   mediaDropEl.addEventListener('drop', e => {
     e.preventDefault();
     mediaDropEl.classList.remove('drag-over');
-    const f = e.dataTransfer.files[0];
-    if (f && (isVideoFile(f) || isImageFile(f))) applyMedia(f);
+    const files = [...e.dataTransfer.files].filter(f => isVideoFile(f) || isImageFile(f));
+    files.forEach(f => { if (f.path) f._sourcePath = f.path; });
+    if (files.length) applyMediaFiles(files);
   });
   mediaInput.addEventListener('change', () => {
-    if (mediaInput.files[0]) applyMedia(mediaInput.files[0]);
+    const files = [...mediaInput.files].filter(f => isVideoFile(f) || isImageFile(f));
+    files.forEach(f => { if (f.path) f._sourcePath = f.path; });
+    if (files.length) applyMediaFiles(files);
+    mediaInput.value = '';
+  });
+
+  window.addEventListener('paste-image-logo', e => {
+    const file = e.detail;
+    if (!mediaFile && !mediaFiles.length) {
+      applyMediaFiles([file]);
+      setStatus('idle', '📋 Đã dán ảnh từ Clipboard làm file gốc');
+    } else if (!logoImg) {
+      readDataURL(file).then(u => applyLogo(u, file.name));
+      setStatus('idle', '🏷️ Đã dán ảnh từ Clipboard làm Logo thương hiệu');
+    } else {
+      applyMediaFiles([file]);
+      setStatus('idle', '📋 Đã dán ảnh mới từ Clipboard');
+    }
   });
 
   // ── Logo picker ─────────────────────────────────────────────────────────────
@@ -1385,8 +1588,136 @@
     });
   });
 
+  // ── Show preview in after panel ───────────────────────────────────────────
+  function showAfterPreview(blob, isVideo) {
+    const url = URL.createObjectURL(blob);
+    afterEmpty.classList.add('hidden');
+    if (afterEmpty2) afterEmpty2.classList.add('hidden');
+
+    if (isVideo) {
+      [afterImg, afterImg2].forEach(img => {
+        if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); }
+      });
+      [afterVideo, afterVideo2].forEach(v => {
+        if (v) {
+          v.src = url;
+          v.classList.remove('hidden');
+          v.classList.add('active');
+          v.load();
+          v.currentTime = 0;
+          v.play().catch(() => {});
+        }
+      });
+    } else {
+      [afterVideo, afterVideo2].forEach(v => {
+        if (v) { v.src = ''; v.classList.remove('active'); v.classList.add('hidden'); }
+      });
+      [afterImg, afterImg2].forEach(img => {
+        if (img) {
+          img.src = url;
+          img.classList.remove('hidden');
+          img.classList.add('loaded');
+        }
+      });
+    }
+  }
+
+  // ── Compute logo rect for any media file ──────────────────────────────────
+  async function computeLogoRectForFile(file) {
+    const isVid = isVideoFile(file);
+    let natW = 1280, natH = 720;
+    let geminiRect = null;
+
+    if (isVid) {
+      const url = URL.createObjectURL(file);
+      const vid = document.createElement('video');
+      vid.src = url;
+      vid.muted = true;
+      await new Promise(r => { vid.onloadedmetadata = r; });
+      natW = vid.videoWidth || 1280;
+      natH = vid.videoHeight || 720;
+      try {
+        const fc = document.createElement('canvas');
+        fc.width = natW; fc.height = natH;
+        vid.currentTime = 0;
+        await new Promise(r => { vid.onseeked = r; });
+        fc.getContext('2d').drawImage(vid, 0, 0);
+        const engine = await window.GeminiWatermarkRemover.createWatermarkEngine();
+        const probe = await engine.removeWatermarkFromImage(fc);
+        const m = probe?.meta || probe;
+        if (m && m.width > 0 && m.x != null) {
+          geminiRect = { x: m.x, y: m.y, w: m.width, h: m.height };
+        }
+      } catch (_) {}
+      URL.revokeObjectURL(url);
+    } else {
+      const dataUrl = await readDataURL(file);
+      const img = new Image();
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl; });
+      natW = img.naturalWidth || img.width;
+      natH = img.naturalHeight || img.height;
+      try {
+        const res = await window.GeminiWatermarkRemover.removeWatermarkFromImage(img);
+        const m = res?.meta || res;
+        if (m && m.width > 0 && m.x != null) {
+          geminiRect = { x: m.x, y: m.y, w: m.width, h: m.height };
+        }
+      } catch (_) {}
+    }
+
+    if (!geminiRect) {
+      geminiRect = getDefaultGeminiRect(natW, natH);
+    }
+
+    const aspect = (logoImg?.img?.naturalWidth || 1) / (logoImg?.img?.naturalHeight || 1);
+    let rect = null;
+
+    if (logoPos === 'gemini') {
+      let drawW = Math.round(geminiRect.w * (logoScale / 100));
+      let drawH = Math.round(drawW / aspect);
+      if (drawH > drawW * 2) { drawH = drawW * 2; drawW = Math.round(drawH * aspect); }
+      let drawX = Math.round(geminiRect.x + geminiRect.w / 2 - drawW / 2);
+      let drawY = Math.round(geminiRect.y + geminiRect.h / 2 - drawH / 2);
+      rect = { x: Math.max(0, drawX), y: Math.max(0, drawY), w: drawW, h: drawH };
+    } else if (logoPos === 'custom' && customLogoRect && mediaNatW && mediaNatH) {
+      const relX = customLogoRect.x / mediaNatW;
+      const relY = customLogoRect.y / mediaNatH;
+      const relW = customLogoRect.w / mediaNatW;
+      const relH = customLogoRect.h / mediaNatH;
+      rect = {
+        x: Math.round(relX * natW),
+        y: Math.round(relY * natH),
+        w: Math.max(16, Math.round(relW * natW)),
+        h: Math.max(16, Math.round(relH * natH))
+      };
+    } else {
+      const baseRef = Math.round(Math.min(natW, natH) * 0.12);
+      let drawW = Math.round(baseRef * (logoScale / 100));
+      let drawH = Math.round(drawW / aspect);
+      if (drawH > drawW) { drawH = drawW; drawW = Math.round(drawH * aspect); }
+      const margin = Math.round(Math.min(natW, natH) * 0.04);
+      const positions = {
+        tl: { x: margin,                  y: margin },
+        tc: { x: (natW - drawW) / 2,     y: margin },
+        tr: { x: natW - drawW - margin,  y: margin },
+        ml: { x: margin,                  y: (natH - drawH) / 2 },
+        mc: { x: (natW - drawW) / 2,     y: (natH - drawH) / 2 },
+        mr: { x: natW - drawW - margin,  y: (natH - drawH) / 2 },
+        bl: { x: margin,                  y: natH - drawH - margin },
+        bc: { x: (natW - drawW) / 2,     y: natH - drawH - margin },
+        br: { x: natW - drawW - margin,  y: natH - drawH - margin },
+      };
+      const pt = positions[logoPos] || positions.br;
+      rect = { x: Math.round(pt.x), y: Math.round(pt.y), w: drawW, h: drawH };
+    }
+
+    return rect;
+  }
+
   // ── Apply: image ────────────────────────────────────────────────────────────
-  async function applyLogoToImage() {
+  async function applyLogoToImage(file, rect) {
+    const targetFile = file || mediaFile;
+    const targetRect = rect || customLogoRect;
     return new Promise((res, rej) => {
       const img = new Image();
       img.onload = () => {
@@ -1396,24 +1727,26 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
 
-        if (customLogoRect && logoImg) {
+        if (targetRect && logoImg) {
           ctx.save();
           ctx.globalAlpha = logoOpacity / 100;
-          ctx.drawImage(logoImg.img, customLogoRect.x, customLogoRect.y, customLogoRect.w, customLogoRect.h);
+          ctx.drawImage(logoImg.img, targetRect.x, targetRect.y, targetRect.w, targetRect.h);
           ctx.restore();
         }
 
-        const isJpeg = /\.jpe?g$/i.test(mediaFile.name) || mediaFile.type === 'image/jpeg';
+        const isJpeg = /\.jpe?g$/i.test(targetFile.name) || targetFile.type === 'image/jpeg';
         canvas.toBlob(blob => blob ? res(blob) : rej(new Error('Xuất ảnh thất bại')),
           isJpeg ? 'image/jpeg' : 'image/png', isJpeg ? 0.95 : undefined);
       };
       img.onerror = rej;
-      readDataURL(mediaFile).then(u => { img.src = u; });
+      readDataURL(targetFile).then(u => { img.src = u; });
     });
   }
 
   // ── Apply: video via FFmpeg ─────────────────────────────────────────────────
-  async function applyLogoToVideoFFmpeg() {
+  async function applyLogoToVideoFFmpeg(file, rect) {
+    const targetFile = file || mediaFile;
+    const targetRect = rect || customLogoRect;
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width  = logoImg.img.naturalWidth;
     tempCanvas.height = logoImg.img.naturalHeight;
@@ -1421,17 +1754,17 @@
     const logoPngBlob = await new Promise(r => tempCanvas.toBlob(r, 'image/png'));
     const logoBuffer  = await logoPngBlob.arrayBuffer();
 
-    const srcPath = mediaFile._sourcePath || mediaFile.path || null;
-    const srcBuf = srcPath ? new ArrayBuffer(0) : await mediaFile.arrayBuffer();
+    const srcPath = targetFile._sourcePath || targetFile.path || null;
+    const srcBuf = srcPath ? new ArrayBuffer(0) : await targetFile.arrayBuffer();
 
     const result = await window.electronAPI.overlayLogoVideo({
       sourcePath: srcPath,
       buffer: srcBuf,
       logoBuffer,
-      logoX: customLogoRect.x,
-      logoY: customLogoRect.y,
-      logoW: customLogoRect.w,
-      logoH: customLogoRect.h,
+      logoX: targetRect.x,
+      logoY: targetRect.y,
+      logoW: targetRect.w,
+      logoH: targetRect.h,
       opacity: logoOpacity / 100
     });
 
@@ -1440,8 +1773,10 @@
   }
 
   // ── Fallback: Web VideoCanvas ───────────────────────────────────────────────
-  async function applyLogoToVideoCanvas() {
-    const srcUrl = URL.createObjectURL(mediaFile);
+  async function applyLogoToVideoCanvas(file, rect) {
+    const targetFile = file || mediaFile;
+    const targetRect = rect || customLogoRect;
+    const srcUrl = URL.createObjectURL(targetFile);
     const vid = document.createElement('video');
     vid.src = srcUrl; vid.muted = true; vid.playsInline = true; vid.preload = 'auto';
     await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = rej; });
@@ -1471,7 +1806,7 @@
 
       ctx.save();
       ctx.globalAlpha = logoOpacity / 100;
-      ctx.drawImage(logoImg.img, customLogoRect.x, customLogoRect.y, customLogoRect.w, customLogoRect.h);
+      ctx.drawImage(logoImg.img, targetRect.x, targetRect.y, targetRect.w, targetRect.h);
       ctx.restore();
 
       const vf = new VideoFrame(fc, { timestamp: i * fdu, duration: fdu });
@@ -1490,8 +1825,28 @@
     return muxer.finalize();
   }
 
-  // ── Main apply handler ──────────────────────────────────────────────────────
-  btnApply.addEventListener('click', async () => {
+  // ── Process single file item ────────────────────────────────────────────────
+  async function processOneLogoItem(file) {
+    const isVid = isVideoFile(file);
+    const rect = (file === mediaFile && customLogoRect)
+      ? customLogoRect
+      : await computeLogoRectForFile(file);
+
+    let blob;
+    if (isVid) {
+      if (isElectron && window.electronAPI.overlayLogoVideo) {
+        blob = await applyLogoToVideoFFmpeg(file, rect);
+      } else {
+        blob = await applyLogoToVideoCanvas(file, rect);
+      }
+    } else {
+      blob = await applyLogoToImage(file, rect);
+    }
+    return { blob, isVideo: isVid };
+  }
+
+  // ── Single file processing ──────────────────────────────────────────────────
+  async function processLogoSingle() {
     if (!mediaFile || !logoImg || !customLogoRect) return;
 
     btnApply.disabled = true;
@@ -1505,71 +1860,92 @@
     setStatus('busy', 'Đang chèn logo...');
 
     try {
-      let blob;
-      if (isVideoFile(mediaFile)) {
-        if (isElectron && window.electronAPI.overlayLogoVideo) {
-          setStatus('busy', '⚡ Đang chèn logo bằng FFmpeg (nhanh)...');
-          blob = await applyLogoToVideoFFmpeg();
-        } else {
-          setStatus('busy', '🎬 Đang xử lý từng frame...');
-          blob = await applyLogoToVideoCanvas();
-        }
-      } else {
-        blob = await applyLogoToImage();
-      }
-
+      const { blob, isVideo } = await processOneLogoItem(mediaFile);
       resultBlob = blob;
-
-      // Show in after panel with proper visible classes
-      const url = URL.createObjectURL(blob);
-      afterEmpty.classList.add('hidden');
-      if (afterEmpty2) afterEmpty2.classList.add('hidden');
-
-      if (isVideoFile(mediaFile)) {
-        [afterImg, afterImg2].forEach(img => {
-          if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); }
-        });
-        [afterVideo, afterVideo2].forEach(v => {
-          if (v) {
-            v.src = url;
-            v.classList.remove('hidden');
-            v.classList.add('active');
-            v.load();
-            v.currentTime = 0;
-            v.play().catch(() => {});
-          }
-        });
-      } else {
-        [afterVideo, afterVideo2].forEach(v => {
-          if (v) { v.src = ''; v.classList.remove('active'); v.classList.add('hidden'); }
-        });
-        [afterImg, afterImg2].forEach(img => {
-          if (img) {
-            img.src = url;
-            img.classList.remove('hidden');
-            img.classList.add('loaded');
-          }
-        });
-      }
+      showAfterPreview(blob, isVideo);
 
       videoProgress.classList.add('hidden');
       setStatus('ok', '✓ Đã chèn logo thành công! Xem kết quả ở cột SAU');
       btnSave.disabled  = false;
       btnApply.disabled = false;
-
     } catch (err) {
       videoProgress.classList.add('hidden');
       setStatus('err', 'Lỗi: ' + err.message);
       console.error(err);
       btnApply.disabled = false;
     }
+  }
+
+  // ── Batch processing ────────────────────────────────────────────────────────
+  async function processLogoBatch() {
+    btnApply.disabled = true;
+    btnSave.disabled  = true;
+    btnLogoSaveAll.classList.add('hidden');
+    processedLogoList = [];
+    videoProgress.classList.remove('hidden');
+    logoVpFill.style.width = '20%';
+    logoVpFill.style.animation = 'pulse-bar 1.2s ease infinite';
+    setLogoQueueProgress(0, mediaFiles.length);
+
+    for (let i = 0; i < mediaFiles.length; i++) {
+      const f = mediaFiles[i];
+      const qs = document.getElementById(`lqs-${i}`);
+      if (qs) qs.textContent = '⏳';
+      document.querySelectorAll('#logo-queue-list li').forEach(el => el.classList.remove('active'));
+      const activeLi = document.getElementById(`lqi-${i}`);
+      if (activeLi) activeLi.classList.add('active');
+
+      currentMediaIdx = i;
+      setLogoQueueProgress(i, mediaFiles.length);
+      setStatus('busy', `Đang chèn logo ${i + 1}/${mediaFiles.length}: ${f.name}`);
+      logoVpFrames.textContent = `${i + 1} / ${mediaFiles.length} file`;
+      logoVpTime.textContent   = f.name;
+
+      try {
+        const { blob, isVideo } = await processOneLogoItem(f);
+        processedLogoList.push({
+          name: cleanName(f.name) + '_logo',
+          blob,
+          isVideo,
+          sourcePath: f._sourcePath || null,
+          origName: f.name
+        });
+        resultBlob = blob;
+        showAfterPreview(blob, isVideo);
+        if (qs) qs.textContent = '✓';
+      } catch (err) {
+        console.error('Lỗi file:', f.name, err);
+        if (qs) qs.textContent = '✕';
+      }
+    }
+
+    setLogoQueueProgress(mediaFiles.length, mediaFiles.length);
+    videoProgress.classList.add('hidden');
+    setStatus('ok', `✓ Hoàn tất chèn logo ${processedLogoList.length}/${mediaFiles.length} file`);
+    btnApply.disabled = false;
+    btnSave.disabled = processedLogoList.length === 0;
+    if (processedLogoList.length > 0) {
+      btnLogoSaveAll.classList.remove('hidden');
+      btnLogoSaveAll.disabled = false;
+    }
+  }
+
+  // ── Main apply handler ──────────────────────────────────────────────────────
+  btnApply.addEventListener('click', async () => {
+    if ((!mediaFile && !mediaFiles.length) || !logoImg) return;
+    if (mediaFiles.length > 1) {
+      await processLogoBatch();
+    } else {
+      await processLogoSingle();
+    }
   });
 
-  // ── Save ────────────────────────────────────────────────────────────────────
+  // ── Save single result ──────────────────────────────────────────────────────
   btnSave.addEventListener('click', async () => {
     if (!resultBlob) return;
-    const ext  = isVideoFile(mediaFile) ? 'mp4' : /\.jpe?g$/i.test(mediaFile.name) ? 'jpg' : 'png';
-    const name = mediaFile.name.replace(/\.[^.]+$/, '') + '_logo.' + ext;
+    const currentF = mediaFiles[currentMediaIdx] || mediaFile;
+    const ext  = isVideoFile(currentF) ? 'mp4' : /\.jpe?g$/i.test(currentF.name) ? 'jpg' : 'png';
+    const name = currentF.name.replace(/\.[^.]+$/, '') + '_logo.' + ext;
 
     if (isElectron) {
       const r = await window.electronAPI.saveFile({ defaultName: name, mimeType: resultBlob.type });
@@ -1586,13 +1962,55 @@
     }
   });
 
+  // ── Save all results (batch) ────────────────────────────────────────────────
+  btnLogoSaveAll.addEventListener('click', async () => {
+    if (!processedLogoList.length) return;
+    btnLogoSaveAll.disabled = true;
+    btnLogoSaveAll.textContent = 'Đang lưu...';
+    try {
+      if (isElectron) {
+        const res = await window.electronAPI.selectFolder();
+        if (!res.canceled && res.filePaths.length > 0) {
+          const folder = res.filePaths[0];
+          let saved = 0;
+          for (const item of processedLogoList) {
+            const ext = item.isVideo ? 'mp4' : (item.blob.type === 'image/jpeg' ? 'jpg' : 'png');
+            const filePath = `${folder}\\${item.name}.${ext}`.replace(/\\\\/g, '\\');
+            const buf = await item.blob.arrayBuffer();
+            await window.electronAPI.writeFile(filePath, buf);
+            saved++;
+          }
+          setStatus('ok', `✓ Đã lưu ${saved} file vào thư mục`);
+          window.electronAPI.showInFolder(folder);
+        }
+      } else {
+        for (const item of processedLogoList) {
+          const ext = item.isVideo ? 'mp4' : (item.blob.type === 'image/jpeg' ? 'jpg' : 'png');
+          const url = URL.createObjectURL(item.blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${item.name}.${ext}`;
+          a.click();
+          await new Promise(r => setTimeout(r, 300));
+          URL.revokeObjectURL(url);
+        }
+      }
+    } catch (e) {
+      setStatus('err', 'Lỗi lưu: ' + e.message);
+    }
+    btnLogoSaveAll.disabled = false;
+    btnLogoSaveAll.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg> Tải tất cả (Thư mục)`;
+  });
+
   // ── Reset ────────────────────────────────────────────────────────────────────
   btnReset.addEventListener('click', () => {
-    mediaFile = null; resultBlob = null; customLogoRect = null;
+    mediaFile = null; mediaFiles = []; currentMediaIdx = 0; processedLogoList = []; resultBlob = null; customLogoRect = null;
     lmIdle.classList.remove('hidden');
     lmLoaded.classList.add('hidden');
     lmName.textContent = '';
     mediaInput.value = '';
+    logoQueue.classList.add('hidden');
+    btnLogoSaveAll.classList.add('hidden');
     if (logoDragBox) logoDragBox.classList.add('hidden');
     [beforeImg, afterImg, beforeImg2, afterImg2].forEach(img => {
       if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); }
@@ -1619,3 +2037,4 @@
   });
 
 })();
+

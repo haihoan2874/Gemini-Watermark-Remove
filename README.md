@@ -6,12 +6,15 @@ Phần mềm hoạt động hoàn toàn Offline trên máy tính cá nhân của
 
 ## Tính năng chính
 
-- **Xóa Watermark thông minh:** Tự động phát hiện và xóa biểu tượng watermark của Gemini một cách hoàn hảo mà không làm hỏng cấu trúc ảnh gốc.
-- **Xử lý hàng loạt (Batch Processing):** Hỗ trợ kéo thả và xử lý cùng lúc hàng chục bức ảnh, giúp tiết kiệm tối đa thời gian.
-- **Bảo mật tuyệt đối (100% Local):** Mọi quá trình xử lý đều diễn ra cục bộ trên máy tính của bạn. Ứng dụng không bao giờ tải ảnh lên bất kỳ máy chủ lưu trữ nào.
-- **Xem trước trực quan:** Tính năng so sánh ảnh trước và sau khi xử lý (Before/After) giúp bạn dễ dàng kiểm tra chất lượng của từng bức ảnh.
-- **Giao diện hiện đại:** Thiết kế tối giản, chế độ ban đêm (Dark Mode) chuyên nghiệp và tối ưu trải nghiệm người dùng.
-- **Hỗ trợ đa định dạng:** Xử lý tốt các định dạng ảnh phổ biến như PNG, JPG, JPEG, WebP.
+- **Xóa Watermark thông minh:** Tự động phát hiện và xóa biểu tượng watermark của Gemini một cách hoàn hảo trên cả Ảnh và Video mà không làm hỏng cấu trúc file gốc.
+- **Khung nhận diện Watermark trực quan:** Đánh dấu vị trí watermark Gemini bằng khung viền phát sáng động ngay khi tải file lên để người dùng theo dõi trực quan.
+- **Tab Chèn Logo thương hiệu độc lập:** Đè trực tiếp logo thương hiệu lên đúng vị trí icon mờ Gemini (hoặc 9 vị trí tùy chọn, kéo thả chuột trực tiếp trên khung xem trước) bằng công nghệ FFmpeg siêu tốc cho video.
+- **Xử lý hàng loạt (Batch Processing):** Hỗ trợ kéo thả và xử lý cùng lúc hàng chục video / ảnh cho cả Tab Xóa Watermark và Tab Chèn Logo; hỗ trợ xuất toàn bộ danh sách ra thư mục chỉ với 1 click.
+- **Dán nhanh từ Clipboard (`Ctrl + V`):** Nhận diện ảnh chụp màn hình và ảnh copy từ clipboard để nạp ngay vào ứng dụng mà không cần lưu file trung gian.
+- **Bảo mật tuyệt đối (100% Local):** Mọi quá trình xử lý đều diễn ra cục bộ trên máy tính của bạn với FFmpeg tích hợp sẵn. Ứng dụng không bao giờ tải ảnh/video lên bất kỳ máy chủ nào.
+- **Xem trước và so sánh trực quan:** Split view, Before/After view đồng bộ trình phát video song song giữa bản gốc và bản đã xử lý.
+- **Giao diện hiện đại & Dark Mode:** Thiết kế chuẩn S-Life Techwear, tông Slate/Primary sang trọng, mượt mà và tối ưu hóa trải nghiệm.
+- **Hỗ trợ đa định dạng:** Xử lý tốt PNG, JPG, JPEG, WebP, MP4, WebM, MOV.
 
 ## Hướng dẫn cài đặt và sử dụng
 

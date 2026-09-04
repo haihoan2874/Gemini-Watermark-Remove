@@ -147,6 +147,18 @@
           </div>
         </div>
 
+        <!-- Logo batch queue (hidden by default when 1 file) -->
+        <div class="queue hidden" id="logo-queue">
+          <div class="queue-header">
+            <span class="queue-title">Danh sách file</span>
+            <div class="queue-progress-text" id="lq-progress-text">0 / 0</div>
+          </div>
+          <div class="queue-progress-bar-wrap">
+            <div class="queue-progress-bar" id="lq-progress-bar"></div>
+          </div>
+          <ul class="queue-list" id="logo-queue-list" aria-label="Danh sách file chèn logo"></ul>
+        </div>
+
         <!-- Logo file picker -->
         <div class="logo-section" id="logo-section-tab" style="margin-top:0">
           <div class="logo-header">
@@ -245,6 +257,13 @@
             </svg>
             Lưu kết quả
           </button>
+          <button id="btn-logo-save-all" class="btn btn-secondary hidden" title="Lưu toàn bộ danh sách đã chèn logo">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
+              <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
+            </svg>
+            Tải tất cả (ZIP / Thư mục)
+          </button>
           <button id="btn-logo-reset" class="btn btn-ghost">Hủy (Chọn lại)</button>
         </div>
 
@@ -271,6 +290,10 @@
           <div class="media-wrap" id="media-wrap-before">
             <img id="before-img" class="preview-img" alt="Ảnh gốc" draggable="false"/>
             <video id="before-video" class="preview-video" muted playsinline controls></video>
+            <!-- Watermark detect box for Tab 1 -->
+            <div id="watermark-detect-box" class="watermark-detect-box hidden" title="Vị trí watermark Gemini phát hiện">
+              <div class="watermark-detect-badge">✦ Vị trí Gemini</div>
+            </div>
             <!-- Interactive draggable logo overlay box -->
             <div id="logo-drag-box" class="logo-drag-box hidden" title="Bấm và giữ chuột để di chuyển logo">
               <img id="logo-drag-img" class="logo-drag-img" alt="" draggable="false"/>
@@ -308,7 +331,6 @@
 
 <script src="assets/gemini-sdk.js"></script>
 <script src="assets/webm-muxer.js"></script>
-<script src="watermark-detector.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
