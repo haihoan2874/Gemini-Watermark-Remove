@@ -15,7 +15,7 @@ function createWindow() {
     height: 780,
     minWidth: 800,
     minHeight: 600,
-    title: 'Gemini Watermark Remover - TRỊNH HẢI HOÀN',
+    title: 'Gemini Studio Toolkit - All-in-One Creative Media & Document Suite · TRỊNH HẢI HOÀN',
     icon: path.join(__dirname, 'assets', 'icon.png'),
     backgroundColor: '#07070f',
     show: false, // show after ready-to-show for smooth launch
@@ -53,8 +53,8 @@ function buildAppMenu() {
           accelerator: 'CmdOrCtrl+O',
           click: async () => {
             const result = await dialog.showOpenDialog(mainWindow, {
-              title: 'Chọn ảnh cần xóa watermark',
-              filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+              title: 'Chọn file cần xử lý',
+              filters: [{ name: 'Media Files', extensions: ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'webm', 'mov', 'docx', 'doc'] }],
               properties: ['openFile', 'multiSelections'],
             });
             if (!result.canceled && result.filePaths.length > 0) {
@@ -97,9 +97,9 @@ function buildAppMenu() {
           click: () => {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: 'Gemini Watermark Remover',
-              message: 'Gemini Watermark Remover v1.0.0',
-              detail: 'Tool xóa icon ✦ watermark khỏi ảnh AI từ Gemini.\n\nXử lý hoàn toàn cục bộ — ảnh không bao giờ rời máy bạn.',
+              title: 'Gemini Studio Toolkit',
+              message: 'Gemini Studio Toolkit v1.0.0',
+              detail: 'Bộ công cụ sáng tạo đa năng 4-trong-1:\n✦ Xóa Watermark AI (Ảnh & Video)\n✦ Chèn Logo / Dấu bản quyền thương hiệu\n✦ Xóa Phông AI (Background Removal)\n✦ Chuyển đổi định dạng Media & Tài liệu Word sang PDF\n\nPhát triển bởi: TRỊNH HẢI HOÀN\nXử lý 100% Offline — Dữ liệu an toàn tuyệt đối.',
               buttons: ['OK'],
             });
           },

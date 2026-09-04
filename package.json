@@ -1,15 +1,19 @@
 {
-  "name": "gemini-watermark-remover",
+  "name": "gemini-studio-toolkit",
   "version": "1.0.0",
-  "description": "Tool xóa icon ✦ watermark Gemini khỏi ảnh AI-generated",
+  "description": "Bộ công cụ sáng tạo đa năng 4-trong-1: Xóa Watermark AI, Chèn Logo, Xóa Phông AI (Background Removal) & Chuyển đổi Media / Tài liệu Word sang PDF 100% Offline.",
   "main": "main.js",
-  "author": "Gemini Watermark Remover",
+  "author": "Trịnh Hải Hoàn",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haihoan2874/Gemini-Studio-Toolkit.git"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "electron . --enable-logging",
-    "build": "electron-packager . \"Gemini Watermark Remover\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent --ignore=convert-icon.mjs --ignore=create-ico.js --asar",
-    "build:dir": "electron-packager . \"Gemini Watermark Remover\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent",
+    "build": "electron-packager . \"Gemini Studio Toolkit\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent --ignore=convert-icon.mjs --ignore=create-ico.js --asar",
+    "build:dir": "electron-packager . \"Gemini Studio Toolkit\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent",
     "dist": "electron-builder --win"
   },
   "devDependencies": {
@@ -21,9 +25,9 @@
     "sharp": "^0.35.3"
   },
   "build": {
-    "appId": "com.gemini.watermark-remover",
-    "productName": "Gemini Watermark Remover",
-    "copyright": "Copyright © 2025",
+    "appId": "com.trinhhaihoan.gemini-studio-toolkit",
+    "productName": "Gemini Studio Toolkit",
+    "copyright": "Copyright © 2025 Trịnh Hải Hoàn",
     "directories": {
       "output": "dist"
     },
@@ -58,7 +62,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Gemini Watermark Remover",
+      "shortcutName": "Gemini Studio Toolkit",
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
       "installerHeader": "assets/icon.ico",
@@ -66,7 +70,7 @@
       "language": "1033"
     },
     "portable": {
-      "artifactName": "GeminiWatermarkRemover-Portable-${version}.exe"
+      "artifactName": "GeminiStudioToolkit-Portable-${version}.exe"
     }
   },
   "dependencies": {

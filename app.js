@@ -76,9 +76,19 @@ window.addEventListener('paste', e => {
   const tabSplit  = document.getElementById('tab-split');
   const tabBefore = document.getElementById('tab-before');
   const tabAfter  = document.getElementById('tab-after');
+  const tabWipe   = document.getElementById('tab-wipe');
   const viewSplit  = document.getElementById('view-split');
   const viewBefore = document.getElementById('view-before');
   const viewAfter  = document.getElementById('view-after');
+  const viewWipe   = document.getElementById('view-wipe');
+  const wipeRange  = document.getElementById('wipe-range');
+  const wipeHandle = document.getElementById('wipe-handle');
+  const wipeClipLayer   = document.getElementById('wipe-layer-after');
+  const wipeImgBefore   = document.getElementById('wipe-img-before');
+  const wipeImgAfter    = document.getElementById('wipe-img-after');
+  const wipeVideoBefore = document.getElementById('wipe-video-before');
+  const wipeVideoAfter  = document.getElementById('wipe-video-after');
+  const wipeEmpty       = document.getElementById('wipe-empty');
 
   // ── State ──────────────────────────────────────────────────────────────────
   let fileQueue      = [];
@@ -195,8 +205,12 @@ window.addEventListener('paste', e => {
         const li = document.createElement('li');
         li.id = `qi-${i}`;
         if (i === 0) li.classList.add('active');
+        const isImg = isImageFile(f);
         const icon = isVideoFile(f) ? '🎬' : '🖼️';
-        li.innerHTML = `<span class="q-icon">${icon}</span> <span class="q-name">${f.name}</span><span class="q-status" id="qs-${i}">—</span>`;
+        const mediaPreviewHtml = isImg
+          ? `<img src="${URL.createObjectURL(f)}" class="queue-thumb" alt=""/>`
+          : `<span class="q-icon">${icon}</span>`;
+        li.innerHTML = `${mediaPreviewHtml} <span class="q-name">${f.name}</span><span class="q-status" id="qs-${i}">—</span>`;
 
         li.addEventListener('click', () => {
           document.querySelectorAll('#queue-list li').forEach(el => el.classList.remove('active'));
@@ -770,16 +784,62 @@ window.addEventListener('paste', e => {
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   function switchTab(active) {
-    [tabSplit, tabBefore, tabAfter].forEach(t => { t.classList.remove('active'); t.setAttribute('aria-pressed', 'false'); });
-    [viewSplit, viewBefore, viewAfter].forEach(v => v.classList.add('hidden'));
+    [tabSplit, tabBefore, tabAfter, tabWipe].forEach(t => { t?.classList.remove('active'); t?.setAttribute('aria-pressed', 'false'); });
+    [viewSplit, viewBefore, viewAfter, viewWipe].forEach(v => v?.classList.add('hidden'));
     active.btn.classList.add('active');
     active.btn.setAttribute('aria-pressed', 'true');
     active.view.classList.remove('hidden');
+    if (active.btn === tabWipe) {
+      updateWipeMedia();
+    }
   }
 
-  tabSplit.addEventListener('click',  () => switchTab({ btn: tabSplit,  view: viewSplit }));
-  tabBefore.addEventListener('click', () => switchTab({ btn: tabBefore, view: viewBefore }));
-  tabAfter.addEventListener('click',  () => switchTab({ btn: tabAfter,  view: viewAfter }));
+  function setWipePosition(pct) {
+    if (wipeHandle) wipeHandle.style.left = `${pct}%`;
+    if (wipeClipLayer) wipeClipLayer.style.clipPath = `polygon(${pct}% 0, 100% 0, 100% 100%, ${pct}% 100%)`;
+  }
+
+  wipeRange?.addEventListener('input', e => {
+    setWipePosition(e.target.value);
+  });
+
+  function updateWipeMedia() {
+    const hasBefore = beforeImg.src && !beforeImg.classList.contains('hidden') && !beforeImg.src.endsWith('/') && beforeImg.src !== window.location.href;
+    const hasBeforeVid = beforeVideo.src && beforeVideo.classList.contains('active');
+    const hasAfter = afterImg.src && !afterImg.classList.contains('hidden') && !afterImg.src.endsWith('/') && afterImg.src !== window.location.href;
+    const hasAfterVid = afterVideo.src && afterVideo.classList.contains('active');
+
+    if ((hasBefore || hasBeforeVid) && (hasAfter || hasAfterVid)) {
+      wipeEmpty?.classList.add('hidden');
+      if (hasBefore) {
+        wipeImgBefore.src = beforeImg.src;
+        wipeImgBefore.classList.remove('hidden');
+        wipeVideoBefore.classList.remove('active');
+      } else if (hasBeforeVid) {
+        wipeVideoBefore.src = beforeVideo.src;
+        wipeVideoBefore.classList.add('active');
+        wipeImgBefore.classList.add('hidden');
+      }
+
+      if (hasAfter) {
+        wipeImgAfter.src = afterImg.src;
+        wipeImgAfter.classList.remove('hidden');
+        wipeVideoAfter.classList.remove('active');
+      } else if (hasAfterVid) {
+        wipeVideoAfter.src = afterVideo.src;
+        wipeVideoAfter.classList.add('active');
+        wipeImgAfter.classList.add('hidden');
+      }
+    } else {
+      wipeEmpty?.classList.remove('hidden');
+    }
+  }
+
+  tabSplit?.addEventListener('click',  () => switchTab({ btn: tabSplit,  view: viewSplit }));
+  tabBefore?.addEventListener('click', () => switchTab({ btn: tabBefore, view: viewBefore }));
+  tabAfter?.addEventListener('click',  () => switchTab({ btn: tabAfter,  view: viewAfter }));
+  tabWipe?.addEventListener('click',   () => switchTab({ btn: tabWipe,   view: viewWipe }));
+  window.addEventListener('preview-updated', updateWipeMedia);
 
   // ── Image helpers ─────────────────────────────────────────────────────────
   function setBeforeImage(url) {
@@ -794,11 +854,13 @@ window.addEventListener('paste', e => {
     [beforeVideo, beforeVideo2].forEach(v => { v.classList.remove('active'); });
     beforeEmpty.classList.add('hidden');
     beforeEmpty2.classList.add('hidden');
+    if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function clearBeforeImage() {
     [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
     hideTab1WatermarkBox();
+    if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function setAfterImage(url) {
@@ -809,12 +871,14 @@ window.addEventListener('paste', e => {
     [afterVideo, afterVideo2].forEach(v => { v.classList.remove('active'); });
     afterEmpty.classList.add('hidden');
     afterEmpty2.classList.add('hidden');
+    if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function clearAfterImage() {
     [afterImg, afterImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
     afterEmpty.classList.remove('hidden');
     afterEmpty2.classList.remove('hidden');
+    if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   // ── Video helpers ──────────────────────────────────────────────────────────
@@ -827,6 +891,7 @@ window.addEventListener('paste', e => {
     [beforeImg, beforeImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
     beforeEmpty.classList.add('hidden');
     beforeEmpty2.classList.add('hidden');
+    if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function clearBeforeVideo() {
@@ -834,6 +899,7 @@ window.addEventListener('paste', e => {
       v.pause(); v.src = ''; v.classList.remove('active');
     });
     hideTab1WatermarkBox();
+    if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function setAfterVideo(blob) {
@@ -845,6 +911,7 @@ window.addEventListener('paste', e => {
     [afterImg, afterImg2].forEach(img => { img.src = ''; img.classList.remove('loaded'); });
     afterEmpty.classList.add('hidden');
     afterEmpty2.classList.add('hidden');
+    if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   function clearAfterVideo() {
@@ -853,6 +920,7 @@ window.addEventListener('paste', e => {
     });
     afterEmpty.classList.remove('hidden');
     afterEmpty2.classList.remove('hidden');
+    if (tabWipe?.classList.contains('active')) updateWipeMedia();
   }
 
   // ── Status ─────────────────────────────────────────────────────────────────
@@ -1009,6 +1077,8 @@ window.addEventListener('paste', e => {
   setupVideoSync(afterVideo, beforeVideo);
   setupVideoSync(beforeVideo2, afterVideo2);
   setupVideoSync(afterVideo2, beforeVideo2);
+  setupVideoSync(wipeVideoBefore, wipeVideoAfter);
+  setupVideoSync(wipeVideoAfter, wipeVideoBefore);
 
   // ── Main tab switcher ──────────────────────────────────────────────────────
   const mtabRemove   = document.getElementById('mtab-remove');
@@ -1372,8 +1442,12 @@ window.addEventListener('paste', e => {
       const li = document.createElement('li');
       li.id = `lqi-${i}`;
       if (i === currentMediaIdx) li.classList.add('active');
+      const isImg = isImageFile(f);
       const icon = isVideoFile(f) ? '🎬' : '🖼️';
-      li.innerHTML = `<span class="q-icon">${icon}</span> <span class="q-name">${f.name}</span><span class="q-status" id="lqs-${i}">—</span>`;
+      const mediaPreviewHtml = isImg
+        ? `<img src="${URL.createObjectURL(f)}" class="queue-thumb" alt=""/>`
+        : `<span class="q-icon">${icon}</span>`;
+      li.innerHTML = `${mediaPreviewHtml} <span class="q-name">${f.name}</span><span class="q-status" id="lqs-${i}">—</span>`;
       li.addEventListener('click', () => {
         document.querySelectorAll('#logo-queue-list li').forEach(el => el.classList.remove('active'));
         li.classList.add('active');
@@ -1657,6 +1731,7 @@ window.addEventListener('paste', e => {
         }
       });
     }
+    window.dispatchEvent(new CustomEvent('preview-updated'));
   }
 
   // ── Compute logo rect for any media file ──────────────────────────────────
@@ -2815,6 +2890,7 @@ window.addEventListener('paste', e => {
     }
     afterEmpty?.classList.add('hidden');
     afterEmpty2?.classList.add('hidden');
+    window.dispatchEvent(new CustomEvent('preview-updated'));
   }
 
   function renderQueueList() {
@@ -2832,9 +2908,12 @@ window.addEventListener('paste', e => {
       li.className = 'queue-item' + (isCurrent ? ' active' : '') + (isDone ? ' done' : '');
       li.style.cursor = 'pointer';
       li.innerHTML = `
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">
-          ${isDone ? '✓ ' : ''}${file.name}
-        </span>
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <img src="${URL.createObjectURL(file)}" class="queue-thumb" alt=""/>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;">
+            ${isDone ? '✓ ' : ''}${file.name}
+          </span>
+        </div>
         <span>${isDone ? 'Hoàn tất' : (isCurrent ? 'Đang chọn' : 'Chờ')}</span>
       `;
       li.addEventListener('click', () => {

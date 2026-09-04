@@ -706,6 +706,7 @@
             <button class="tab active" id="tab-split" aria-pressed="true">Song song</button>
             <button class="tab" id="tab-before" aria-pressed="false">Trước</button>
             <button class="tab" id="tab-after" aria-pressed="false">Sau</button>
+            <button class="tab" id="tab-wipe" aria-pressed="false">Vuốt so sánh</button>
           </div>
         </div>
 
@@ -748,6 +749,37 @@
           <img id="after-img-2" class="preview-img preview-img--full" alt="Ảnh sau xử lý" draggable="false"/>
           <video id="after-video-2" class="preview-video preview-video--full" muted playsinline controls></video>
           <div class="img-empty" id="after-empty-2"><span>Chưa xử lý</span></div>
+        </div>
+
+        <!-- Wipe comparison view -->
+        <div class="wipe-view hidden" id="view-wipe">
+          <div class="wipe-container" id="wipe-container">
+            <!-- Underneath image (Before) -->
+            <div class="wipe-layer wipe-layer--before" id="wipe-layer-before">
+              <img id="wipe-img-before" class="preview-img preview-img--full" alt="Ảnh trước" draggable="false"/>
+              <video id="wipe-video-before" class="preview-video preview-video--full" muted playsinline controls></video>
+              <span class="img-label">GỐC (TRƯỚC)</span>
+            </div>
+            <!-- Overlay image (After) clipped by slider -->
+            <div class="wipe-layer wipe-layer--after" id="wipe-layer-after">
+              <img id="wipe-img-after" class="preview-img preview-img--full" alt="Ảnh sau" draggable="false"/>
+              <video id="wipe-video-after" class="preview-video preview-video--full" muted playsinline controls></video>
+              <span class="img-label img-label--after">KẾT QUẢ (SAU)</span>
+            </div>
+            <!-- Draggable divider line & knob -->
+            <div class="wipe-handle" id="wipe-handle" style="left: 50%;">
+              <div class="wipe-handle-line"></div>
+              <div class="wipe-handle-knob">
+                <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor">
+                  <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+                  <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            <!-- Range slider controller underneath / on top -->
+            <input type="range" id="wipe-range" class="wipe-range-input" min="0" max="100" value="50" aria-label="Thanh trượt so sánh trước sau"/>
+          </div>
+          <div class="img-empty" id="wipe-empty"><span>Chưa có file hoặc chưa xử lý</span></div>
         </div>
       </div><!-- /panel-right-compare -->
 
