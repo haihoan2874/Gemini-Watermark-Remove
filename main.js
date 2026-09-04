@@ -192,7 +192,7 @@ ipcMain.handle('overlay-logo-video', async (event, { sourcePath, buffer, logoBuf
   const alphaVal = Math.max(0, Math.min(1, opacity ?? 1));
   // Use colorchannelmixer to apply alpha, scale logo to target size, then overlay
   const filterComplex = [
-    `[1:v]scale=${Math.round(logoW)}:${Math.round(logoH)},`,
+    `[1:v]scale=${Math.round(logoW)}:${Math.round(logoH)},format=rgba,`,
     `colorchannelmixer=aa=${alphaVal.toFixed(3)}`,
     `[logo];`,
     `[0:v][logo]overlay=x=${Math.round(logoX)}:y=${Math.round(logoY)}:format=auto[v]`
