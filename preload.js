@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   convertDocxToPdf: (options) => ipcRenderer.invoke('convert-docx-to-pdf', options),
   selectConvertFiles: () => ipcRenderer.invoke('select-convert-files'),
 
+  // AI Background Removal API
+  removeBackground: (options) => ipcRenderer.invoke('remove-background', options),
+
   // Listen for "Open Image" triggered from native menu
   onOpenFiles: (callback) => ipcRenderer.on('open-files', (_event, filePaths) => callback(filePaths)),
 });

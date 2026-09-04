@@ -41,6 +41,12 @@
         </svg>
         <span>Chèn Logo</span>
       </button>
+      <button class="nav-tab" id="mtab-bgremove" data-tab="bgremove">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+          <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
+        </svg>
+        <span>Xóa Phông</span>
+      </button>
       <button class="nav-tab" id="mtab-convert" data-tab="convert">
         <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
           <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.451a.75.75 0 000-1.5H4.5a.75.75 0 00-.75.75v3.75a.75.75 0 001.5 0v-2.19l.343.342a7 7 0 0011.93-3.155.75.75 0 00-1.46-.302zM4.688 8.576a5.5 5.5 0 019.201-2.466l.312.311H11.75a.75.75 0 000 1.5h3.75a.75.75 0 00.75-.75V3.421a.75.75 0 00-1.5 0v2.19l-.343-.342A7 7 0 002.477 8.424a.75.75 0 001.46.302z" clip-rule="evenodd"/>
@@ -308,7 +314,123 @@
 
       </div><!-- /tc-logo -->
 
-      <!-- ── TAB 3: CHUYỂN ĐỔI ĐỊNH DẠNG (MEDIA & TÀI LIỆU) ────── -->
+      <!-- ── TAB 3: XÓA PHÔNG NỀN (BACKGROUND REMOVAL) ────────── -->
+      <div class="tab-content hidden" id="tc-bgremove">
+
+        <!-- Drop zone -->
+        <div id="bg-dropzone" class="dropzone" role="button" tabindex="0" aria-label="Kéo thả ảnh cần xóa phông">
+          <input type="file" id="bg-file-input" accept="image/png,image/jpeg,image/webp,image/bmp" multiple aria-label="Chọn ảnh xóa phông"/>
+          <div class="dropzone-idle" id="bg-idle">
+            <div class="dropzone-icon-ring">
+              <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <p class="dropzone-label">Kéo thả ảnh cần xóa phông vào đây</p>
+            <p class="dropzone-hint">hoặc nhấn để chọn · Hỗ trợ dán ảnh Ctrl + V</p>
+            <div class="format-tags">
+              <span class="format-tag">Người & Chân dung</span>
+              <span class="format-tag">Sản phẩm TMĐT</span>
+              <span class="format-tag">Thú cưng</span>
+              <span class="format-tag">Đồ vật</span>
+            </div>
+          </div>
+          <div class="dropzone-loaded hidden" id="bg-loaded">
+            <div class="dropzone-check-ring">
+              <svg class="dropzone-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <p class="dropzone-loaded-name" id="bg-loaded-name">—</p>
+            <p class="dropzone-hint">Nhấn để đổi ảnh khác</p>
+          </div>
+        </div>
+
+        <!-- Batch queue for bg remover -->
+        <div class="queue hidden" id="bg-queue">
+          <div class="queue-header">
+            <span class="queue-title">Danh sách ảnh</span>
+            <div class="queue-progress-text" id="bg-queue-progress-text">0 / 0</div>
+          </div>
+          <div class="queue-track">
+            <div class="queue-fill" id="bg-queue-progress-bar"></div>
+          </div>
+          <ul class="queue-list" id="bg-queue-list" aria-label="Danh sách ảnh xóa phông"></ul>
+        </div>
+
+        <!-- Background Options Section -->
+        <div class="conv-format-section">
+          <div class="section-title-wrap">
+            <span class="section-badge">Nền</span>
+            <span class="conv-section-title">Tùy chọn nền sau khi tách</span>
+          </div>
+
+          <div class="bg-mode-grid">
+            <button class="bg-color-pill active" data-mode="transparent" title="Xuất file PNG trong suốt không nền">
+              <span class="pill-check-icon">🏁</span>
+              <span>Trong suốt (Alpha)</span>
+            </button>
+            <button class="bg-color-pill" data-mode="white" data-color="#ffffff" title="Nền trắng tinh chuẩn chụp sản phẩm sàn TMĐT">
+              <span class="color-dot color-dot--white"></span>
+              <span>Trắng (#fff)</span>
+            </button>
+            <button class="bg-color-pill" data-mode="blue" data-color="#2b579a" title="Nền xanh chuẩn ảnh thẻ CCCD / Hộ chiếu">
+              <span class="color-dot color-dot--blue"></span>
+              <span>Xanh CCCD</span>
+            </button>
+            <button class="bg-color-pill" data-mode="custom" title="Tự chọn màu nền bất kỳ">
+              <span class="color-dot color-dot--rainbow"></span>
+              <span>Màu khác</span>
+              <input type="color" id="bg-picker-input" value="#0f172a" class="hidden-color-input"/>
+            </button>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div class="status-row" id="bg-status-row">
+          <span class="status-dot" id="bg-status-dot"></span>
+          <span class="status-msg" id="bg-status-msg">Chọn ảnh để bắt đầu xóa phông</span>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="video-progress hidden" id="bg-batch-progress">
+          <div class="video-progress-header">
+            <span class="video-progress-label" id="bg-prog-label">Đang phân tích tách nền AI...</span>
+            <span class="video-progress-frames" id="bg-prog-percent">0%</span>
+          </div>
+          <div class="video-progress-track">
+            <div class="video-progress-fill" id="bg-prog-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button id="btn-bg-process" class="btn btn-primary" disabled>
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
+            </svg>
+            Xóa Phông Nền
+          </button>
+          <button id="btn-bg-save" class="btn btn-secondary" disabled>
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
+              <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
+            </svg>
+            Lưu ảnh đã tách
+          </button>
+          <button id="btn-bg-save-all" class="btn btn-secondary hidden" title="Lưu toàn bộ danh sách ảnh đã tách phông">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
+              <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
+            </svg>
+            Tải tất cả (Thư mục)
+          </button>
+          <button id="btn-bg-reset" class="btn btn-ghost">Hủy (Chọn lại)</button>
+        </div>
+
+      </div><!-- /tc-bgremove -->
+
+      <!-- ── TAB 4: CHUYỂN ĐỔI ĐỊNH DẠNG (MEDIA & TÀI LIỆU) ────── -->
       <div class="tab-content hidden" id="tc-convert">
 
         <!-- Mode filter tags -->

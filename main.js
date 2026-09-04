@@ -471,6 +471,43 @@ ipcMain.handle('convert-media', async (event, { sourcePath, buffer, targetFormat
   });
 });
 
+// ── IPC: AI Background Removal (Diverse: Person, Product, Pet, Objects) ──────
+ipcMain.handle('remove-background', async (event, { sourcePath, buffer, mimeType, options = {} }) => {
+  const { removeBackground } = require('@imgly/background-removal-node');
+  const sharp = require('sharp');
+  const fs = require('fs');
+
+  try {
+    let inputBuf = buffer;
+    if (!inputBuf && sourcePath && fs.existsSync(sourcePath)) {
+      inputBuf = fs.readFileSync(sourcePath);
+    }
+    if (!inputBuf) {
+      return { success: false, error: 'Không tìm thấy dữ liệu ảnh' };
+    }
+
+    const mime = mimeType || 'image/png';
+    const inputBlob = new Blob([inputBuf], { type: mime });
+
+    // Execute neural background segmentation
+    const resultBlob = await removeBackground(inputBlob);
+    let outBuffer = Buffer.from(await resultBlob.arrayBuffer());
+
+    // If user specified a solid replacement background color (not transparent)
+    if (options.bgColor && options.bgColor !== 'transparent') {
+      outBuffer = await sharp(outBuffer)
+        .flatten({ background: options.bgColor })
+        .png()
+        .toBuffer();
+    }
+
+    return { success: true, buffer: outBuffer };
+  } catch (err) {
+    console.error('remove-background error:', err);
+    return { success: false, error: err.message || 'Lỗi xử lý xóa phông' };
+  }
+});
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   createWindow();

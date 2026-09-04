@@ -1381,6 +1381,79 @@ body {
   border-color: var(--accent);
 }
 
+/* ── TAB 4: Background Remover Styles ────────────────────────────────────── */
+.bg-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.bg-color-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.bg-color-pill:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text-main);
+}
+
+.bg-color-pill.active {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.pill-check-icon {
+  font-size: 13px;
+}
+
+.color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+.color-dot--white {
+  background: #ffffff;
+}
+.color-dot--blue {
+  background: #2b579a;
+}
+.color-dot--rainbow {
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+}
+
+.hidden-color-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+/* Graphic transparent checkerboard pattern */
+.checkerboard-bg {
+  background-color: #0d131f !important;
+  background-image: repeating-conic-gradient(#151f33 0% 25%, #0d131f 0% 50%) !important;
+  background-position: 50% !important;
+  background-size: 16px 16px !important;
+}
+
 /* Utilities */
 .hidden {
   display: none !important;

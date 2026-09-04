@@ -12,9 +12,12 @@ window.addEventListener('paste', e => {
   if (!blob) return;
   const file = new File([blob], `screenshot_${Date.now()}.png`, { type: 'image/png' });
   const isLogoTab = document.getElementById('mtab-logo')?.classList.contains('active');
+  const isBgRemoveTab = document.getElementById('mtab-bgremove')?.classList.contains('active');
   const isConvertTab = document.getElementById('mtab-convert')?.classList.contains('active');
   if (isConvertTab) {
     window.dispatchEvent(new CustomEvent('paste-file-convert', { detail: file }));
+  } else if (isBgRemoveTab) {
+    window.dispatchEvent(new CustomEvent('paste-image-bgremove', { detail: file }));
   } else if (isLogoTab) {
     window.dispatchEvent(new CustomEvent('paste-image-logo', { detail: file }));
   } else {
@@ -1008,22 +1011,39 @@ window.addEventListener('paste', e => {
   setupVideoSync(afterVideo2, beforeVideo2);
 
   // ── Main tab switcher ──────────────────────────────────────────────────────
-  const mtabRemove  = document.getElementById('mtab-remove');
-  const mtabLogo    = document.getElementById('mtab-logo');
-  const mtabConvert = document.getElementById('mtab-convert');
-  const tcRemove    = document.getElementById('tc-remove');
-  const tcLogo      = document.getElementById('tc-logo');
-  const tcConvert   = document.getElementById('tc-convert');
+  const mtabRemove   = document.getElementById('mtab-remove');
+  const mtabLogo     = document.getElementById('mtab-logo');
+  const mtabBgRemove = document.getElementById('mtab-bgremove');
+  const mtabConvert  = document.getElementById('mtab-convert');
+  const tcRemove     = document.getElementById('tc-remove');
+  const tcLogo       = document.getElementById('tc-logo');
+  const tcBgRemove   = document.getElementById('tc-bgremove');
+  const tcConvert    = document.getElementById('tc-convert');
   const panelRightCompare = document.getElementById('panel-right-compare');
   const panelRightConvert = document.getElementById('panel-right-convert');
+  const boxAfter = document.getElementById('box-after');
 
   function switchMainTab(tab) {
-    [mtabRemove, mtabLogo, mtabConvert].forEach(b => b?.classList.remove('active'));
-    [tcRemove, tcLogo, tcConvert].forEach(c => c?.classList.add('hidden'));
+    [mtabRemove, mtabLogo, mtabBgRemove, mtabConvert].forEach(b => b?.classList.remove('active'));
+    [tcRemove, tcLogo, tcBgRemove, tcConvert].forEach(c => c?.classList.add('hidden'));
+
+    // Toggle checkerboard pattern on after-box only in bgremove tab
+    if (tab === 'bgremove') {
+      boxAfter?.classList.add('checkerboard-bg');
+      viewAfter?.classList.add('checkerboard-bg');
+    } else {
+      boxAfter?.classList.remove('checkerboard-bg');
+      viewAfter?.classList.remove('checkerboard-bg');
+    }
 
     if (tab === 'logo') {
       mtabLogo?.classList.add('active');
       tcLogo?.classList.remove('hidden');
+      panelRightCompare?.classList.remove('hidden');
+      panelRightConvert?.classList.add('hidden');
+    } else if (tab === 'bgremove') {
+      mtabBgRemove?.classList.add('active');
+      tcBgRemove?.classList.remove('hidden');
       panelRightCompare?.classList.remove('hidden');
       panelRightConvert?.classList.add('hidden');
     } else if (tab === 'convert') {
@@ -1040,9 +1060,10 @@ window.addEventListener('paste', e => {
     window.dispatchEvent(new CustomEvent('tab-switched', { detail: tab }));
   }
 
-  mtabRemove?.addEventListener('click', () => switchMainTab('remove'));
-  mtabLogo?.addEventListener('click',   () => switchMainTab('logo'));
-  mtabConvert?.addEventListener('click', () => switchMainTab('convert'));
+  mtabRemove?.addEventListener('click',   () => switchMainTab('remove'));
+  mtabLogo?.addEventListener('click',     () => switchMainTab('logo'));
+  mtabBgRemove?.addEventListener('click', () => switchMainTab('bgremove'));
+  mtabConvert?.addEventListener('click',  () => switchMainTab('convert'));
 
 })();
 
@@ -2618,6 +2639,407 @@ window.addEventListener('paste', e => {
       btnSaveAll?.classList.add('hidden');
       btnRun.disabled = true;
       setStatus('ok', 'Đã xóa toàn bộ hàng đợi');
+    });
+  }
+
+})();
+
+// ── Tab 4: Background Removal Module (Independent) ────────────────────────────
+(() => {
+  const isElectron = typeof window.electronAPI !== 'undefined';
+
+  // DOM elements
+  const dropzone      = document.getElementById('bg-dropzone');
+  const fileInput     = document.getElementById('bg-file-input');
+  const bgIdle        = document.getElementById('bg-idle');
+  const bgLoaded      = document.getElementById('bg-loaded');
+  const bgLoadedName  = document.getElementById('bg-loaded-name');
+  const btnProcess    = document.getElementById('btn-bg-process');
+  const btnSave       = document.getElementById('btn-bg-save');
+  const btnSaveAll    = document.getElementById('btn-bg-save-all');
+  const btnReset      = document.getElementById('btn-bg-reset');
+  const statusDot     = document.getElementById('bg-status-dot');
+  const statusMsg     = document.getElementById('bg-status-msg');
+  const batchProgress = document.getElementById('bg-batch-progress');
+  const progFill      = document.getElementById('bg-prog-fill');
+  const progLabel     = document.getElementById('bg-prog-label');
+  const progPercent   = document.getElementById('bg-prog-percent');
+
+  // Queue elements
+  const queueWrap     = document.getElementById('bg-queue');
+  const queueList     = document.getElementById('bg-queue-list');
+  const queueBar      = document.getElementById('bg-queue-progress-bar');
+  const queueText     = document.getElementById('bg-queue-progress-text');
+
+  // Color options
+  const colorPills    = document.querySelectorAll('.bg-color-pill');
+  const colorPicker   = document.getElementById('bg-picker-input');
+
+  // Preview elements
+  const beforeImg     = document.getElementById('before-img');
+  const afterImg      = document.getElementById('after-img');
+  const beforeImg2    = document.getElementById('before-img-2');
+  const afterImg2     = document.getElementById('after-img-2');
+  const beforeEmpty   = document.getElementById('before-empty');
+  const afterEmpty    = document.getElementById('after-empty');
+  const beforeEmpty2  = document.getElementById('before-empty-2');
+  const afterEmpty2   = document.getElementById('after-empty-2');
+  const beforeVideo   = document.getElementById('before-video');
+  const afterVideo    = document.getElementById('after-video');
+
+  // State
+  let bgFiles = [];           // File list
+  let currentFileIdx = 0;     // Active preview index
+  let processedBgList = [];   // [{ name, file, blob, url }]
+  let selectedBgColor = 'transparent';
+  let isProcessing = false;
+
+  function setStatus(type, msg) {
+    if (!statusDot || !statusMsg) return;
+    statusDot.className = 'status-dot';
+    if (type === 'ok')   statusDot.classList.add('ok');
+    if (type === 'busy') statusDot.classList.add('busy');
+    if (type === 'err')  statusDot.classList.add('err');
+    statusMsg.textContent = msg;
+  }
+
+  // Color pill interactions
+  colorPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      colorPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const mode = pill.dataset.mode;
+      if (mode === 'transparent') {
+        selectedBgColor = 'transparent';
+      } else if (mode === 'white') {
+        selectedBgColor = '#ffffff';
+      } else if (mode === 'blue') {
+        selectedBgColor = '#2b579a';
+      } else if (mode === 'custom') {
+        if (colorPicker) {
+          colorPicker.click();
+        }
+      }
+    });
+  });
+
+  if (colorPicker) {
+    colorPicker.addEventListener('input', (e) => {
+      selectedBgColor = e.target.value;
+      const customPill = document.querySelector('.bg-color-pill[data-mode="custom"]');
+      if (customPill) {
+        colorPills.forEach(p => p.classList.remove('active'));
+        customPill.classList.add('active');
+        const dot = customPill.querySelector('.color-dot');
+        if (dot) dot.style.background = e.target.value;
+      }
+    });
+  }
+
+  // Ingestion
+  function handleBgFiles(files) {
+    if (!files || !files.length) return;
+    const valid = Array.from(files).filter(f => f.type && f.type.startsWith('image/'));
+    if (!valid.length) return;
+
+    bgFiles = valid;
+    currentFileIdx = 0;
+    processedBgList = [];
+
+    // UI state
+    bgIdle.classList.add('hidden');
+    bgLoaded.classList.remove('hidden');
+    bgLoadedName.textContent = bgFiles.length === 1 ? bgFiles[0].name : `${bgFiles.length} ảnh đã chọn`;
+
+    // Queue UI
+    if (bgFiles.length > 1) {
+      queueWrap.classList.remove('hidden');
+      renderQueueList();
+    } else {
+      queueWrap.classList.add('hidden');
+    }
+
+    // Display first file in preview
+    previewFile(bgFiles[0]);
+
+    btnProcess.disabled = false;
+    btnSave.disabled = true;
+    btnSaveAll.classList.add('hidden');
+    setStatus('ok', `Đã nạp ${bgFiles.length} ảnh. Sẵn sàng xóa phông!`);
+  }
+
+  function previewFile(file) {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    if (beforeImg) {
+      beforeImg.src = url;
+      beforeImg.classList.remove('hidden');
+      beforeImg.classList.add('loaded');
+    }
+    if (beforeImg2) {
+      beforeImg2.src = url;
+      beforeImg2.classList.remove('hidden');
+      beforeImg2.classList.add('loaded');
+    }
+    beforeEmpty?.classList.add('hidden');
+    beforeEmpty2?.classList.add('hidden');
+
+    // Hide any video elements
+    beforeVideo?.classList.add('hidden');
+    afterVideo?.classList.add('hidden');
+
+    // Reset after preview unless already processed
+    const already = processedBgList.find(p => p.name === file.name);
+    if (already && already.url) {
+      showAfterPreview(already.url);
+      btnSave.disabled = false;
+    } else {
+      if (afterImg) { afterImg.src = ''; afterImg.classList.add('hidden'); }
+      if (afterImg2) { afterImg2.src = ''; afterImg2.classList.add('hidden'); }
+      afterEmpty?.classList.remove('hidden');
+      afterEmpty2?.classList.remove('hidden');
+      btnSave.disabled = true;
+    }
+  }
+
+  function showAfterPreview(url) {
+    if (afterImg) {
+      afterImg.src = url;
+      afterImg.classList.remove('hidden');
+      afterImg.classList.add('loaded');
+    }
+    if (afterImg2) {
+      afterImg2.src = url;
+      afterImg2.classList.remove('hidden');
+      afterImg2.classList.add('loaded');
+    }
+    afterEmpty?.classList.add('hidden');
+    afterEmpty2?.classList.add('hidden');
+  }
+
+  function renderQueueList() {
+    if (!queueList) return;
+    queueList.innerHTML = '';
+    queueText.textContent = `${processedBgList.length} / ${bgFiles.length}`;
+    const pct = Math.round((processedBgList.length / bgFiles.length) * 100);
+    queueBar.style.width = `${pct}%`;
+
+    bgFiles.forEach((file, idx) => {
+      const isCurrent = idx === currentFileIdx;
+      const isDone = processedBgList.some(p => p.name === file.name);
+
+      const li = document.createElement('li');
+      li.className = 'queue-item' + (isCurrent ? ' active' : '') + (isDone ? ' done' : '');
+      li.style.cursor = 'pointer';
+      li.innerHTML = `
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">
+          ${isDone ? '✓ ' : ''}${file.name}
+        </span>
+        <span>${isDone ? 'Hoàn tất' : (isCurrent ? 'Đang chọn' : 'Chờ')}</span>
+      `;
+      li.addEventListener('click', () => {
+        currentFileIdx = idx;
+        renderQueueList();
+        previewFile(file);
+      });
+      queueList.appendChild(li);
+    });
+  }
+
+  // Dropzone events
+  if (dropzone) {
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+      if (e.dataTransfer.files && e.dataTransfer.files.length) {
+        const files = Array.from(e.dataTransfer.files);
+        files.forEach(f => { if (f.path) f._sourcePath = f.path; });
+        handleBgFiles(files);
+      }
+    });
+
+    dropzone.addEventListener('click', () => {
+      if (fileInput) fileInput.click();
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', e => {
+      if (e.target.files && e.target.files.length) {
+        handleBgFiles(e.target.files);
+      }
+    });
+  }
+
+  // Global paste
+  window.addEventListener('paste-image-bgremove', e => {
+    if (e.detail) handleBgFiles([e.detail]);
+  });
+
+  // Processing execution
+  if (btnProcess) {
+    btnProcess.addEventListener('click', async () => {
+      if (isProcessing || !bgFiles.length) return;
+      isProcessing = true;
+      btnProcess.disabled = true;
+      btnReset.disabled = true;
+      batchProgress.classList.remove('hidden');
+      setStatus('busy', 'Đang phân tích tách nền AI...');
+
+      for (let i = 0; i < bgFiles.length; i++) {
+        currentFileIdx = i;
+        const file = bgFiles[i];
+        previewFile(file);
+        renderQueueList();
+
+        const pct = Math.round((i / bgFiles.length) * 100);
+        progFill.style.width = `${pct}%`;
+        progPercent.textContent = `${pct}%`;
+        progLabel.textContent = `(${i + 1}/${bgFiles.length}) Đang tách nền: ${file.name}...`;
+
+        try {
+          const buf = await file.arrayBuffer();
+          const res = await window.electronAPI.removeBackground({
+            sourcePath: file._sourcePath || null,
+            buffer: buf,
+            mimeType: file.type || 'image/png',
+            options: { bgColor: selectedBgColor }
+          });
+
+          if (!res.success) throw new Error(res.error || 'Lỗi tách nền');
+
+          const outBlob = new Blob([res.buffer], { type: 'image/png' });
+          const outUrl = URL.createObjectURL(outBlob);
+
+          // Update processed list
+          const existingIdx = processedBgList.findIndex(p => p.name === file.name);
+          if (existingIdx >= 0) {
+            processedBgList[existingIdx] = { name: file.name, file, blob: outBlob, url: outUrl };
+          } else {
+            processedBgList.push({ name: file.name, file, blob: outBlob, url: outUrl });
+          }
+
+          if (i === currentFileIdx) {
+            showAfterPreview(outUrl);
+          }
+        } catch (err) {
+          console.error(err);
+          setStatus('err', `Lỗi xử lý ${file.name}: ` + err.message);
+        }
+      }
+
+      progFill.style.width = '100%';
+      progPercent.textContent = '100%';
+      progLabel.textContent = 'Hoàn tất tách nền!';
+      setStatus('ok', `✓ Đã tách phông xong ${processedBgList.length}/${bgFiles.length} ảnh`);
+
+      renderQueueList();
+      btnProcess.disabled = false;
+      btnReset.disabled = false;
+      btnSave.disabled = false;
+      isProcessing = false;
+
+      if (processedBgList.length > 1) {
+        btnSaveAll.classList.remove('hidden');
+      }
+    });
+  }
+
+  // Save single
+  if (btnSave) {
+    btnSave.addEventListener('click', async () => {
+      const curFile = bgFiles[currentFileIdx];
+      if (!curFile) return;
+      const processed = processedBgList.find(p => p.name === curFile.name);
+      if (!processed || !processed.blob) return;
+
+      const baseName = curFile.name.replace(/\.[^.]+$/, '');
+      const outName = `${baseName}_nobg.png`;
+
+      if (isElectron) {
+        const r = await window.electronAPI.saveFile({
+          defaultName: outName,
+          mimeType: 'image/png'
+        });
+        if (!r.canceled && r.filePath) {
+          const buf = await processed.blob.arrayBuffer();
+          await window.electronAPI.writeFile(r.filePath, buf);
+          setStatus('ok', '✓ Đã lưu ảnh: ' + r.filePath.split(/[\\/]/).pop());
+          window.electronAPI.showInFolder(r.filePath);
+        }
+      } else {
+        const a = document.createElement('a');
+        a.href = processed.url;
+        a.download = outName;
+        a.click();
+      }
+    });
+  }
+
+  // Save all to folder
+  if (btnSaveAll) {
+    btnSaveAll.addEventListener('click', async () => {
+      if (!processedBgList.length) return;
+      btnSaveAll.disabled = true;
+      btnSaveAll.textContent = 'Đang lưu...';
+
+      try {
+        if (isElectron) {
+          const res = await window.electronAPI.selectFolder();
+          if (!res.canceled && res.filePaths && res.filePaths.length > 0) {
+            const folder = res.filePaths[0];
+            let saved = 0;
+            for (const item of processedBgList) {
+              const baseName = item.name.replace(/\.[^.]+$/, '');
+              const outPath = `${folder}\\${baseName}_nobg.png`.replace(/\\\\/g, '\\');
+              const buf = await item.blob.arrayBuffer();
+              await window.electronAPI.writeFile(outPath, buf);
+              saved++;
+            }
+            setStatus('ok', `✓ Đã lưu ${saved} ảnh vào thư mục`);
+            window.electronAPI.showInFolder(folder);
+          }
+        } else {
+          for (const item of processedBgList) {
+            const baseName = item.name.replace(/\.[^.]+$/, '');
+            const a = document.createElement('a');
+            a.href = item.url;
+            a.download = `${baseName}_nobg.png`;
+            a.click();
+            await new Promise(r => setTimeout(r, 250));
+          }
+        }
+      } catch (err) {
+        setStatus('err', 'Lỗi lưu thư mục: ' + err.message);
+      }
+
+      btnSaveAll.disabled = false;
+      btnSaveAll.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg> Tải tất cả (Thư mục)`;
+    });
+  }
+
+  // Reset
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      bgFiles = [];
+      currentFileIdx = 0;
+      processedBgList = [];
+      bgIdle.classList.remove('hidden');
+      bgLoaded.classList.add('hidden');
+      bgLoadedName.textContent = '';
+      if (fileInput) fileInput.value = '';
+      queueWrap.classList.add('hidden');
+      batchProgress.classList.add('hidden');
+      btnSaveAll.classList.add('hidden');
+      btnProcess.disabled = true;
+      btnSave.disabled = true;
+      if (beforeImg) { beforeImg.src = ''; beforeImg.classList.add('hidden'); }
+      if (afterImg) { afterImg.src = ''; afterImg.classList.add('hidden'); }
+      beforeEmpty?.classList.remove('hidden');
+      afterEmpty?.classList.remove('hidden');
+      setStatus('ok', 'Đã hủy và sẵn sàng chọn ảnh mới');
     });
   }
 
