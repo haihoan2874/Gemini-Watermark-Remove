@@ -292,13 +292,9 @@ body {
   padding: 20px 14px;
 }
 
-.dropzone input[type="file"] {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
+.dropzone input[type="file"],
+.logo-uploader input[type="file"] {
+  display: none !important;
 }
 
 .dropzone:hover, .dropzone.drag-over {

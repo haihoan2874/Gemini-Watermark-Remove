@@ -157,8 +157,12 @@ window.addEventListener('paste', e => {
     files.forEach(f => { if (f.path) f._sourcePath = f.path; });
     if (files.length) handleFiles(files);
   });
-  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('click', e => {
+    if (e.target.tagName === 'INPUT') return;
+    fileInput.click();
+  });
   dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+  fileInput.addEventListener('click', e => e.stopPropagation());
   fileInput.addEventListener('change', () => {
     const files = [...fileInput.files].filter(f =>
       isImageFile(f) || isVideoFile(f)
@@ -1652,8 +1656,11 @@ window.addEventListener('paste', e => {
   }
 
   mediaDropEl.addEventListener('click', e => {
-    if (e.target !== btnRemoveLogo && !btnRemoveLogo.contains(e.target)) mediaInput.click();
+    if (e.target.tagName === 'INPUT') return;
+    if (btnRemoveLogo && (e.target === btnRemoveLogo || btnRemoveLogo.contains(e.target))) return;
+    mediaInput.click();
   });
+  mediaInput.addEventListener('click', e => e.stopPropagation());
   mediaDropEl.addEventListener('dragover',  e => { e.preventDefault(); mediaDropEl.classList.add('drag-over'); });
   mediaDropEl.addEventListener('dragleave', () => mediaDropEl.classList.remove('drag-over'));
   mediaDropEl.addEventListener('drop', e => {
@@ -1705,8 +1712,11 @@ window.addEventListener('paste', e => {
   }
 
   logoUploader.addEventListener('click', e => {
-    if (e.target !== btnRemoveLogo && !btnRemoveLogo.contains(e.target)) logoFileInput.click();
+    if (e.target.tagName === 'INPUT') return;
+    if (btnRemoveLogo && (e.target === btnRemoveLogo || btnRemoveLogo.contains(e.target))) return;
+    logoFileInput.click();
   });
+  logoFileInput.addEventListener('click', e => e.stopPropagation());
   logoUploader.addEventListener('dragover',  e => { e.preventDefault(); logoUploader.classList.add('drag-over'); });
   logoUploader.addEventListener('dragleave', () => logoUploader.classList.remove('drag-over'));
   logoUploader.addEventListener('drop', e => {
@@ -2587,6 +2597,7 @@ window.addEventListener('paste', e => {
     });
 
     dropzone.addEventListener('click', async (e) => {
+      if (e.target.tagName === 'INPUT') return;
       // If native Electron, show native multi-file dialog
       if (isElectron) {
         e.preventDefault();
@@ -2603,14 +2614,18 @@ window.addEventListener('paste', e => {
           }));
           addFilesToQueue(files);
         }
+      } else if (fileInput) {
+        fileInput.click();
       }
     });
   }
 
   if (fileInput) {
+    fileInput.addEventListener('click', e => e.stopPropagation());
     fileInput.addEventListener('change', e => {
       if (e.target.files && e.target.files.length) {
         addFilesToQueue(e.target.files);
+        fileInput.value = '';
       }
     });
   }
@@ -3021,15 +3036,18 @@ window.addEventListener('paste', e => {
       }
     });
 
-    dropzone.addEventListener('click', () => {
+    dropzone.addEventListener('click', e => {
+      if (e.target.tagName === 'INPUT') return;
       if (fileInput) fileInput.click();
     });
   }
 
   if (fileInput) {
+    fileInput.addEventListener('click', e => e.stopPropagation());
     fileInput.addEventListener('change', e => {
       if (e.target.files && e.target.files.length) {
         handleBgFiles(e.target.files);
+        fileInput.value = '';
       }
     });
   }
