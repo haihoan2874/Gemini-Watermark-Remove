@@ -192,6 +192,9 @@
               <!-- Position picker -->
               <div class="control-row">
                 <span class="control-label">Vị trí logo</span>
+                <button type="button" class="btn-snap-gemini" id="btn-snap-gemini" title="Tự động căn logo đè chính xác lên vị trí icon mờ Gemini">
+                  🎯 Đè chính xác vị trí logo Gemini
+                </button>
                 <div class="pos-grid" id="pos-grid">
                   <button class="pos-btn" data-pos="tl" title="Góc trên trái">↖</button>
                   <button class="pos-btn" data-pos="tc" title="Trên giữa">↑</button>
@@ -203,6 +206,7 @@
                   <button class="pos-btn" data-pos="bc" title="Dưới giữa">↓</button>
                   <button class="pos-btn active" data-pos="br" title="Góc dưới phải (mặc định Gemini)">↘</button>
                 </div>
+                <span class="pos-hint">💡 Hoặc dùng chuột kéo di chuyển logo trực tiếp trên khung xem trước</span>
               </div>
             </div>
           </div>
@@ -262,16 +266,25 @@
 
       <!-- Split view -->
       <div class="compare-grid" id="view-split">
-        <div class="img-box">
+        <div class="img-box" id="box-before">
           <span class="img-label">TRƯỚC</span>
-          <img id="before-img" class="preview-img" alt="Ảnh gốc" draggable="false"/>
-          <video id="before-video" class="preview-video" muted playsinline controls></video>
+          <div class="media-wrap" id="media-wrap-before">
+            <img id="before-img" class="preview-img" alt="Ảnh gốc" draggable="false"/>
+            <video id="before-video" class="preview-video" muted playsinline controls></video>
+            <!-- Interactive draggable logo overlay box -->
+            <div id="logo-drag-box" class="logo-drag-box hidden" title="Bấm và giữ chuột để di chuyển logo">
+              <img id="logo-drag-img" class="logo-drag-img" alt="" draggable="false"/>
+              <div class="logo-drag-badge">✥ Kéo vị trí</div>
+            </div>
+          </div>
           <div class="img-empty" id="before-empty"><span>Chưa có file</span></div>
         </div>
-        <div class="img-box">
+        <div class="img-box" id="box-after">
           <span class="img-label img-label--after">SAU</span>
-          <img id="after-img" class="preview-img" alt="Ảnh sau xử lý" draggable="false"/>
-          <video id="after-video" class="preview-video" muted playsinline controls></video>
+          <div class="media-wrap" id="media-wrap-after">
+            <img id="after-img" class="preview-img" alt="Ảnh sau xử lý" draggable="false"/>
+            <video id="after-video" class="preview-video" muted playsinline controls></video>
+          </div>
           <div class="img-empty" id="after-empty"><span>Chưa xử lý</span></div>
         </div>
       </div>

@@ -897,6 +897,7 @@
       tcLogo.classList.add('hidden');
       tcRemove.classList.remove('hidden');
     }
+    window.dispatchEvent(new CustomEvent('tab-switched', { detail: tab }));
   }
 
   mtabRemove.addEventListener('click', () => switchMainTab('remove'));
@@ -909,40 +910,68 @@
   const isElectron = typeof window.electronAPI !== 'undefined';
 
   // DOM refs
-  const mediaDropEl   = document.getElementById('logo-media-drop');
-  const mediaInput    = document.getElementById('logo-media-input');
-  const lmIdle        = document.getElementById('lm-idle');
-  const lmLoaded      = document.getElementById('lm-loaded');
-  const lmName        = document.getElementById('lm-name');
-  const logoUploader  = document.getElementById('logo-uploader');
-  const logoFileInput = document.getElementById('logo-file-input');
-  const logoIdle      = document.getElementById('logo-idle');
-  const logoPreview   = document.getElementById('logo-preview-wrap');
-  const logoThumb     = document.getElementById('logo-thumb');
-  const logoName      = document.getElementById('logo-name');
-  const btnRemoveLogo = document.getElementById('btn-remove-logo');
-  const rngScale      = document.getElementById('rng-logo-scale');
-  const valScale      = document.getElementById('val-logo-scale');
-  const rngOpacity    = document.getElementById('rng-logo-opacity');
-  const valOpacity    = document.getElementById('val-logo-opacity');
-  const posGrid       = document.getElementById('pos-grid');
-  const statusDot     = document.getElementById('logo-status-dot');
-  const statusMsg     = document.getElementById('logo-status-msg');
-  const videoProgress = document.getElementById('logo-video-progress');
-  const logoVpFill    = document.getElementById('logo-vp-fill');
-  const logoVpFrames  = document.getElementById('logo-vp-frames');
-  const logoVpTime    = document.getElementById('logo-vp-time');
-  const btnApply      = document.getElementById('btn-logo-apply');
-  const btnSave       = document.getElementById('btn-logo-save');
-  const btnReset      = document.getElementById('btn-logo-reset');
+  const mediaDropEl     = document.getElementById('logo-media-drop');
+  const mediaInput      = document.getElementById('logo-media-input');
+  const lmIdle          = document.getElementById('lm-idle');
+  const lmLoaded        = document.getElementById('lm-loaded');
+  const lmName          = document.getElementById('lm-name');
+  const logoUploader    = document.getElementById('logo-uploader');
+  const logoFileInput   = document.getElementById('logo-file-input');
+  const logoIdle        = document.getElementById('logo-idle');
+  const logoPreview     = document.getElementById('logo-preview-wrap');
+  const logoThumb       = document.getElementById('logo-thumb');
+  const logoName        = document.getElementById('logo-name');
+  const btnRemoveLogo   = document.getElementById('btn-remove-logo');
+  const rngScale        = document.getElementById('rng-logo-scale');
+  const valScale        = document.getElementById('val-logo-scale');
+  const rngOpacity      = document.getElementById('rng-logo-opacity');
+  const valOpacity      = document.getElementById('val-logo-opacity');
+  const posGrid         = document.getElementById('pos-grid');
+  const btnSnapGemini   = document.getElementById('btn-snap-gemini');
+  const statusDot       = document.getElementById('logo-status-dot');
+  const statusMsg       = document.getElementById('logo-status-msg');
+  const videoProgress   = document.getElementById('logo-video-progress');
+  const logoVpFill      = document.getElementById('logo-vp-fill');
+  const logoVpFrames    = document.getElementById('logo-vp-frames');
+  const logoVpTime      = document.getElementById('logo-vp-time');
+  const btnApply        = document.getElementById('btn-logo-apply');
+  const btnSave         = document.getElementById('btn-logo-save');
+  const btnReset        = document.getElementById('btn-logo-reset');
+
+  // Preview elements
+  const beforeImg       = document.getElementById('before-img');
+  const beforeVideo     = document.getElementById('before-video');
+  const beforeImg2      = document.getElementById('before-img-2');
+  const beforeVideo2    = document.getElementById('before-video-2');
+  const beforeEmpty     = document.getElementById('before-empty');
+  const beforeEmpty2    = document.getElementById('before-empty-2');
+  const afterImg        = document.getElementById('after-img');
+  const afterVideo      = document.getElementById('after-video');
+  const afterImg2       = document.getElementById('after-img-2');
+  const afterVideo2     = document.getElementById('after-video-2');
+  const afterEmpty      = document.getElementById('after-empty');
+  const afterEmpty2     = document.getElementById('after-empty-2');
+  const mediaWrapBefore = document.getElementById('media-wrap-before');
+  const logoDragBox     = document.getElementById('logo-drag-box');
+  const logoDragImg     = document.getElementById('logo-drag-img');
 
   // State
-  let mediaFile  = null;  // source image or video
-  let logoImg    = null;  // { img: Image, dataUrl: string, name: string }
-  let logoPos    = 'br';  // tl|tc|tr|ml|mc|mr|bl|bc|br
-  let resultBlob = null;
-  let logoScale   = 100;
-  let logoOpacity = 100;
+  let mediaFile          = null;  // source File
+  let logoImg            = null;  // { img: Image, dataUrl: string, name: string }
+  let mediaNatW          = 0;     // natural width of source media
+  let mediaNatH          = 0;     // natural height of source media
+  let geminiDetectedRect = null;  // { x, y, w, h } in natural coords
+  let customLogoRect     = null;  // { x, y, w, h } in natural coords
+  let logoPos            = 'br';  // tl|tc|tr|ml|mc|mr|bl|bc|br|custom
+  let resultBlob         = null;
+  let logoScale          = 100;
+  let logoOpacity        = 100;
+  let isDragging         = false;
+  let dragStartX         = 0;
+  let dragStartY         = 0;
+  let initialLogoX       = 0;
+  let initialLogoY       = 0;
+  let isVideoMode        = false;
 
   // ── Status helpers ──────────────────────────────────────────────────────────
   function setStatus(type, msg) {
@@ -970,46 +999,278 @@
     });
   }
 
-  // ── Update apply button state ───────────────────────────────────────────────
   function updateApplyBtn() {
     btnApply.disabled = !(mediaFile && logoImg);
   }
 
-  // ── Media dropzone ──────────────────────────────────────────────────────────
-  function applyMedia(file) {
+  function getDefaultGeminiRect(W, H) {
+    const size = (W > 1024 || H > 1024) ? 96 : 48;
+    const margin = (W > 1024 || H > 1024) ? 48 : 24;
+    return { x: Math.max(0, W - size - margin), y: Math.max(0, H - size - margin), w: size, h: size };
+  }
+
+  // ── Snap to Gemini watermark position ──────────────────────────────────────
+  function snapToGemini() {
+    if (!mediaNatW || !mediaNatH) return;
+    const gRect = geminiDetectedRect || getDefaultGeminiRect(mediaNatW, mediaNatH);
+    const aspect = (logoImg?.img?.naturalWidth || 1) / (logoImg?.img?.naturalHeight || 1);
+
+    // Calculate logo width & height matching Gemini icon size * user scale
+    let drawW = Math.round(gRect.w * (logoScale / 100));
+    let drawH = Math.round(drawW / aspect);
+    if (drawH > drawW * 2) { drawH = drawW * 2; drawW = Math.round(drawH * aspect); }
+
+    // Center logo directly on Gemini watermark
+    let drawX = Math.round(gRect.x + gRect.w / 2 - drawW / 2);
+    let drawY = Math.round(gRect.y + gRect.h / 2 - drawH / 2);
+
+    // Clamp inside image bounds
+    drawX = Math.max(0, Math.min(mediaNatW - drawW, drawX));
+    drawY = Math.max(0, Math.min(mediaNatH - drawH, drawY));
+
+    customLogoRect = { x: drawX, y: drawY, w: drawW, h: drawH };
+    logoPos = 'br';
+
+    posGrid.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+    posGrid.querySelector('[data-pos="br"]')?.classList.add('active');
+
+    updateDragBoxUI();
+    setStatus('ok', `🎯 Đã căn đúng vị trí logo Gemini (${gRect.x}, ${gRect.y})`);
+  }
+
+  // ── Snap to 9-point grid ───────────────────────────────────────────────────
+  function snapToGrid(pos) {
+    if (!mediaNatW || !mediaNatH || !logoImg) return;
+    if (pos === 'br') {
+      snapToGemini();
+      return;
+    }
+
+    const aspect = (logoImg.img.naturalWidth || 1) / (logoImg.img.naturalHeight || 1);
+    const baseSize = Math.round(Math.min(mediaNatW, mediaNatH) * 0.08 * (logoScale / 100));
+    let drawW = baseSize;
+    let drawH = Math.round(baseSize / aspect);
+    if (drawH > baseSize) { drawH = baseSize; drawW = Math.round(baseSize * aspect); }
+
+    const margin = Math.round(Math.min(mediaNatW, mediaNatH) * 0.04);
+    const positions = {
+      tl: { x: margin,                      y: margin },
+      tc: { x: (mediaNatW - drawW) / 2,     y: margin },
+      tr: { x: mediaNatW - drawW - margin,  y: margin },
+      ml: { x: margin,                      y: (mediaNatH - drawH) / 2 },
+      mc: { x: (mediaNatW - drawW) / 2,     y: (mediaNatH - drawH) / 2 },
+      mr: { x: mediaNatW - drawW - margin,  y: (mediaNatH - drawH) / 2 },
+      bl: { x: margin,                      y: mediaNatH - drawH - margin },
+      bc: { x: (mediaNatW - drawW) / 2,     y: mediaNatH - drawH - margin },
+      br: { x: mediaNatW - drawW - margin,  y: mediaNatH - drawH - margin },
+    };
+
+    const pt = positions[pos] || positions.br;
+    customLogoRect = { x: Math.round(pt.x), y: Math.round(pt.y), w: drawW, h: drawH };
+    logoPos = pos;
+    updateDragBoxUI();
+  }
+
+  // ── Position & render interactive draggable overlay box ────────────────────
+  function updateDragBoxUI() {
+    if (!logoImg || !mediaFile || !customLogoRect || !mediaNatW || !mediaNatH) {
+      if (logoDragBox) logoDragBox.classList.add('hidden');
+      return;
+    }
+
+    const mediaEl = isVideoFile(mediaFile) ? beforeVideo : beforeImg;
+    const mRect = mediaEl.getBoundingClientRect();
+    const wrapRect = mediaWrapBefore.getBoundingClientRect();
+
+    if (mRect.width === 0 || mRect.height === 0) {
+      requestAnimationFrame(updateDragBoxUI);
+      return;
+    }
+
+    const scaleX = mRect.width / mediaNatW;
+    const scaleY = mRect.height / mediaNatH;
+
+    const boxX = (mRect.left - wrapRect.left) + customLogoRect.x * scaleX;
+    const boxY = (mRect.top  - wrapRect.top)  + customLogoRect.y * scaleY;
+    const boxW = Math.max(16, customLogoRect.w * scaleX);
+    const boxH = Math.max(16, customLogoRect.h * scaleY);
+
+    logoDragBox.style.left    = `${Math.round(boxX)}px`;
+    logoDragBox.style.top     = `${Math.round(boxY)}px`;
+    logoDragBox.style.width   = `${Math.round(boxW)}px`;
+    logoDragBox.style.height  = `${Math.round(boxH)}px`;
+    logoDragBox.style.opacity = logoOpacity / 100;
+
+    if (logoDragImg.src !== logoImg.dataUrl) {
+      logoDragImg.src = logoImg.dataUrl;
+    }
+    logoDragBox.classList.remove('hidden');
+  }
+
+  // ── Mouse & Touch Dragging ─────────────────────────────────────────────────
+  function onDragStart(clientX, clientY) {
+    if (!customLogoRect) return;
+    isDragging = true;
+    dragStartX = clientX;
+    dragStartY = clientY;
+    initialLogoX = customLogoRect.x;
+    initialLogoY = customLogoRect.y;
+    logoDragBox.classList.add('dragging');
+  }
+
+  function onDragMove(clientX, clientY) {
+    if (!isDragging || !customLogoRect || !mediaNatW || !mediaNatH) return;
+    const mediaEl = isVideoFile(mediaFile) ? beforeVideo : beforeImg;
+    const mRect = mediaEl.getBoundingClientRect();
+    if (mRect.width === 0 || mRect.height === 0) return;
+
+    const scaleX = mRect.width / mediaNatW;
+    const scaleY = mRect.height / mediaNatH;
+
+    const dx = (clientX - dragStartX) / scaleX;
+    const dy = (clientY - dragStartY) / scaleY;
+
+    customLogoRect.x = Math.max(0, Math.min(mediaNatW - customLogoRect.w, Math.round(initialLogoX + dx)));
+    customLogoRect.y = Math.max(0, Math.min(mediaNatH - customLogoRect.h, Math.round(initialLogoY + dy)));
+    logoPos = 'custom';
+
+    // Clear 9-grid active state
+    posGrid.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+
+    updateDragBoxUI();
+  }
+
+  function onDragEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    logoDragBox.classList.remove('dragging');
+  }
+
+  logoDragBox.addEventListener('mousedown', e => {
+    e.preventDefault();
+    onDragStart(e.clientX, e.clientY);
+  });
+  window.addEventListener('mousemove', e => {
+    if (isDragging) onDragMove(e.clientX, e.clientY);
+  });
+  window.addEventListener('mouseup', () => {
+    if (isDragging) onDragEnd();
+  });
+
+  logoDragBox.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: true });
+  window.addEventListener('touchmove', e => {
+    if (isDragging && e.touches.length === 1) {
+      onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: true });
+  window.addEventListener('touchend', () => {
+    if (isDragging) onDragEnd();
+  });
+
+  window.addEventListener('resize', updateDragBoxUI);
+  beforeVideo.addEventListener('loadedmetadata', updateDragBoxUI);
+  beforeImg.addEventListener('load', updateDragBoxUI);
+
+  // ── Media dropzone & Gemini detection ───────────────────────────────────────
+  async function applyMedia(file) {
     mediaFile = file;
+    isVideoMode = isVideoFile(file);
     lmIdle.classList.add('hidden');
     lmLoaded.classList.remove('hidden');
     lmName.textContent = file.name;
 
-    // Show preview in right panel
-    const url = URL.createObjectURL(file);
-    const beforeImg   = document.getElementById('before-img');
-    const beforeVideo = document.getElementById('before-video');
-    const beforeEmpty = document.getElementById('before-empty');
-    const afterImg    = document.getElementById('after-img');
-    const afterVideo  = document.getElementById('after-video');
-    const afterEmpty  = document.getElementById('after-empty');
-
-    // Reset after panel
-    [afterImg, afterVideo].forEach(el => { el.src = ''; el.classList.add('hidden'); });
-    afterEmpty.classList.remove('hidden');
+    // Reset results
     resultBlob = null;
     btnSave.disabled = true;
+    [afterImg, afterImg2].forEach(img => { if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); } });
+    [afterVideo, afterVideo2].forEach(v => { if (v) { v.src = ''; v.classList.remove('active'); v.classList.add('hidden'); } });
+    afterEmpty.classList.remove('hidden');
+    if (afterEmpty2) afterEmpty2.classList.remove('hidden');
 
-    if (isVideoFile(file)) {
-      beforeImg.classList.add('hidden');
-      beforeVideo.classList.remove('hidden');
-      beforeEmpty.classList.add('hidden');
-      beforeVideo.src = url;
+    const url = URL.createObjectURL(file);
+    beforeEmpty.classList.add('hidden');
+    if (beforeEmpty2) beforeEmpty2.classList.add('hidden');
+
+    if (isVideoMode) {
+      [beforeImg, beforeImg2].forEach(img => { if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); } });
+      [beforeVideo, beforeVideo2].forEach(v => {
+        if (v) {
+          v.src = url;
+          v.classList.remove('hidden');
+          v.classList.add('active');
+          v.load();
+        }
+      });
     } else {
-      beforeVideo.classList.add('hidden');
-      beforeImg.classList.remove('hidden');
-      beforeEmpty.classList.add('hidden');
-      beforeImg.src = url;
+      [beforeVideo, beforeVideo2].forEach(v => { if (v) { v.src = ''; v.classList.remove('active'); v.classList.add('hidden'); } });
+      [beforeImg, beforeImg2].forEach(img => {
+        if (img) {
+          img.src = url;
+          img.classList.remove('hidden');
+          img.classList.add('loaded');
+        }
+      });
     }
 
-    setStatus('idle', file.name + ' - San sang');
+    setStatus('busy', 'Đang quét vị trí watermark Gemini...');
+
+    // Detect media dimensions and Gemini watermark position
+    if (isVideoMode) {
+      const vid = document.createElement('video');
+      vid.src = url;
+      vid.muted = true;
+      await new Promise(r => { vid.onloadedmetadata = r; });
+      mediaNatW = vid.videoWidth || 1280;
+      mediaNatH = vid.videoHeight || 720;
+
+      try {
+        const fc = document.createElement('canvas');
+        fc.width = mediaNatW; fc.height = mediaNatH;
+        vid.currentTime = 0;
+        await new Promise(r => { vid.onseeked = r; });
+        fc.getContext('2d').drawImage(vid, 0, 0);
+        const engine = await window.GeminiWatermarkRemover.createWatermarkEngine();
+        const probe = await engine.removeWatermarkFromImage(fc);
+        const m = probe?.meta || probe;
+        if (m && m.width > 0 && m.x != null) {
+          geminiDetectedRect = { x: m.x, y: m.y, w: m.width, h: m.height };
+        } else {
+          geminiDetectedRect = getDefaultGeminiRect(mediaNatW, mediaNatH);
+        }
+      } catch (_) {
+        geminiDetectedRect = getDefaultGeminiRect(mediaNatW, mediaNatH);
+      }
+    } else {
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res; img.onerror = rej;
+        img.src = url;
+      });
+      mediaNatW = img.naturalWidth || img.width;
+      mediaNatH = img.naturalHeight || img.height;
+
+      try {
+        const res = await window.GeminiWatermarkRemover.removeWatermarkFromImage(img);
+        const m = res?.meta || res;
+        if (m && m.width > 0 && m.x != null) {
+          geminiDetectedRect = { x: m.x, y: m.y, w: m.width, h: m.height };
+        } else {
+          geminiDetectedRect = getDefaultGeminiRect(mediaNatW, mediaNatH);
+        }
+      } catch (_) {
+        geminiDetectedRect = getDefaultGeminiRect(mediaNatW, mediaNatH);
+      }
+    }
+
+    if (logoImg) {
+      snapToGemini();
+    } else {
+      setStatus('idle', `${file.name} sẵn sàng · Hãy chọn ảnh logo`);
+    }
     updateApplyBtn();
   }
 
@@ -1037,8 +1298,12 @@
       logoName.textContent = name;
       logoIdle.classList.add('hidden');
       logoPreview.classList.remove('hidden');
-      // Persist
+
       try { localStorage.setItem('gemini_logo_tab_logo', JSON.stringify({ dataUrl, name })); } catch (_) {}
+
+      if (mediaFile && mediaNatW && mediaNatH) {
+        snapToGemini();
+      }
       updateApplyBtn();
     };
     img.src = dataUrl;
@@ -1066,6 +1331,8 @@
     logoIdle.classList.remove('hidden');
     logoPreview.classList.add('hidden');
     logoFileInput.value = '';
+    customLogoRect = null;
+    if (logoDragBox) logoDragBox.classList.add('hidden');
     try { localStorage.removeItem('gemini_logo_tab_logo'); } catch (_) {}
     updateApplyBtn();
   });
@@ -1083,60 +1350,40 @@
   rngScale.addEventListener('input', () => {
     logoScale = parseInt(rngScale.value, 10);
     valScale.textContent = logoScale + '%';
+    if (customLogoRect && logoImg) {
+      const aspect = (logoImg.img.naturalWidth || 1) / (logoImg.img.naturalHeight || 1);
+      const baseRef = geminiDetectedRect ? geminiDetectedRect.w : Math.round(Math.min(mediaNatW, mediaNatH) * 0.08);
+      const newW = Math.round(baseRef * (logoScale / 100));
+      const newH = Math.round(newW / aspect);
+      // Keep center position
+      const cx = customLogoRect.x + customLogoRect.w / 2;
+      const cy = customLogoRect.y + customLogoRect.h / 2;
+      customLogoRect.w = newW;
+      customLogoRect.h = newH;
+      customLogoRect.x = Math.max(0, Math.min(mediaNatW - newW, Math.round(cx - newW / 2)));
+      customLogoRect.y = Math.max(0, Math.min(mediaNatH - newH, Math.round(cy - newH / 2)));
+      updateDragBoxUI();
+    }
   });
+
   rngOpacity.addEventListener('input', () => {
     logoOpacity = parseInt(rngOpacity.value, 10);
     valOpacity.textContent = logoOpacity + '%';
+    if (logoDragBox) logoDragBox.style.opacity = logoOpacity / 100;
   });
 
-  // ── Position grid ───────────────────────────────────────────────────────────
+  // ── Snap button & 9-position grid ──────────────────────────────────────────
+  btnSnapGemini.addEventListener('click', () => {
+    snapToGemini();
+  });
+
   posGrid.querySelectorAll('.pos-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       posGrid.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      logoPos = btn.dataset.pos;
+      snapToGrid(btn.dataset.pos);
     });
   });
-
-  // ── Compute logo position from pos code ─────────────────────────────────────
-  function computeLogoRect(W, H, logoNatW, logoNatH, scale, pos) {
-    const margin = Math.round(Math.min(W, H) * 0.04);
-    // Base size = 8% of shorter dimension, scaled by user slider
-    const baseSize = Math.round(Math.min(W, H) * 0.08 * scale / 100);
-    const aspect = logoNatW / logoNatH;
-    let drawW = baseSize;
-    let drawH = Math.round(baseSize / aspect);
-    if (drawH > baseSize) { drawH = baseSize; drawW = Math.round(baseSize * aspect); }
-
-    const positions = {
-      tl: { x: margin,              y: margin },
-      tc: { x: (W - drawW) / 2,     y: margin },
-      tr: { x: W - drawW - margin,  y: margin },
-      ml: { x: margin,              y: (H - drawH) / 2 },
-      mc: { x: (W - drawW) / 2,     y: (H - drawH) / 2 },
-      mr: { x: W - drawW - margin,  y: (H - drawH) / 2 },
-      bl: { x: margin,              y: H - drawH - margin },
-      bc: { x: (W - drawW) / 2,     y: H - drawH - margin },
-      br: { x: W - drawW - margin,  y: H - drawH - margin },
-    };
-    const { x, y } = positions[pos] || positions.br;
-    return { x: Math.round(x), y: Math.round(y), w: drawW, h: drawH };
-  }
-
-  // ── Stamp logo onto canvas ──────────────────────────────────────────────────
-  function stampLogo(canvas, pos, scale, opacity) {
-    if (!logoImg) return;
-    const ctx = canvas.getContext('2d');
-    const { x, y, w, h } = computeLogoRect(
-      canvas.width, canvas.height,
-      logoImg.img.naturalWidth, logoImg.img.naturalHeight,
-      scale, pos
-    );
-    ctx.save();
-    ctx.globalAlpha = opacity / 100;
-    ctx.drawImage(logoImg.img, x, y, w, h);
-    ctx.restore();
-  }
 
   // ── Apply: image ────────────────────────────────────────────────────────────
   async function applyLogoToImage() {
@@ -1146,10 +1393,18 @@
         const canvas = document.createElement('canvas');
         canvas.width  = img.naturalWidth  || img.width;
         canvas.height = img.naturalHeight || img.height;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        stampLogo(canvas, logoPos, logoScale, logoOpacity);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        if (customLogoRect && logoImg) {
+          ctx.save();
+          ctx.globalAlpha = logoOpacity / 100;
+          ctx.drawImage(logoImg.img, customLogoRect.x, customLogoRect.y, customLogoRect.w, customLogoRect.h);
+          ctx.restore();
+        }
+
         const isJpeg = /\.jpe?g$/i.test(mediaFile.name) || mediaFile.type === 'image/jpeg';
-        canvas.toBlob(blob => blob ? res(blob) : rej(new Error('Export failed')),
+        canvas.toBlob(blob => blob ? res(blob) : rej(new Error('Xuất ảnh thất bại')),
           isJpeg ? 'image/jpeg' : 'image/png', isJpeg ? 0.95 : undefined);
       };
       img.onerror = rej;
@@ -1159,7 +1414,6 @@
 
   // ── Apply: video via FFmpeg ─────────────────────────────────────────────────
   async function applyLogoToVideoFFmpeg() {
-    // Convert logo to PNG buffer
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width  = logoImg.img.naturalWidth;
     tempCanvas.height = logoImg.img.naturalHeight;
@@ -1167,35 +1421,25 @@
     const logoPngBlob = await new Promise(r => tempCanvas.toBlob(r, 'image/png'));
     const logoBuffer  = await logoPngBlob.arrayBuffer();
 
-    // Get video dimensions from element
-    const vid = document.createElement('video');
-    vid.src  = URL.createObjectURL(mediaFile);
-    vid.muted = true;
-    await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = rej; });
-    const W = vid.videoWidth;
-    const H = vid.videoHeight;
-    URL.revokeObjectURL(vid.src);
+    const srcPath = mediaFile._sourcePath || mediaFile.path || null;
+    const srcBuf = srcPath ? new ArrayBuffer(0) : await mediaFile.arrayBuffer();
 
-    const { x, y, w, h } = computeLogoRect(
-      W, H,
-      logoImg.img.naturalWidth, logoImg.img.naturalHeight,
-      logoScale, logoPos
-    );
-
-    const srcBuf = await mediaFile.arrayBuffer();
     const result = await window.electronAPI.overlayLogoVideo({
-      sourcePath: mediaFile._sourcePath || mediaFile.path || null,
+      sourcePath: srcPath,
       buffer: srcBuf,
       logoBuffer,
-      logoX: x, logoY: y, logoW: w, logoH: h,
+      logoX: customLogoRect.x,
+      logoY: customLogoRect.y,
+      logoW: customLogoRect.w,
+      logoH: customLogoRect.h,
       opacity: logoOpacity / 100
     });
 
-    if (!result.success) throw new Error(result.error || 'FFmpeg overlay failed');
+    if (!result.success) throw new Error(result.error || 'FFmpeg overlay thất bại');
     return new Blob([result.buffer], { type: 'video/mp4' });
   }
 
-  // ── Frame-by-frame fallback (web / no Electron) ─────────────────────────────
+  // ── Fallback: Web VideoCanvas ───────────────────────────────────────────────
   async function applyLogoToVideoCanvas() {
     const srcUrl = URL.createObjectURL(mediaFile);
     const vid = document.createElement('video');
@@ -1224,7 +1468,12 @@
       vid.currentTime = Math.min(i / fps, Math.max(0, duration - 0.001));
       await new Promise(r => { vid.onseeked = r; });
       ctx.drawImage(vid, 0, 0, W, H);
-      stampLogo(fc, logoPos, logoScale, logoOpacity);
+
+      ctx.save();
+      ctx.globalAlpha = logoOpacity / 100;
+      ctx.drawImage(logoImg.img, customLogoRect.x, customLogoRect.y, customLogoRect.w, customLogoRect.h);
+      ctx.restore();
+
       const vf = new VideoFrame(fc, { timestamp: i * fdu, duration: fdu });
       encoder.encode(vf, { keyFrame: i % 30 === 0 });
       vf.close();
@@ -1243,7 +1492,7 @@
 
   // ── Main apply handler ──────────────────────────────────────────────────────
   btnApply.addEventListener('click', async () => {
-    if (!mediaFile || !logoImg) return;
+    if (!mediaFile || !logoImg || !customLogoRect) return;
 
     btnApply.disabled = true;
     btnSave.disabled  = true;
@@ -1271,24 +1520,40 @@
 
       resultBlob = blob;
 
-      // Show in after panel
+      // Show in after panel with proper visible classes
       const url = URL.createObjectURL(blob);
-      const afterImg   = document.getElementById('after-img');
-      const afterVideo = document.getElementById('after-video');
-      const afterEmpty = document.getElementById('after-empty');
       afterEmpty.classList.add('hidden');
+      if (afterEmpty2) afterEmpty2.classList.add('hidden');
+
       if (isVideoFile(mediaFile)) {
-        afterImg.classList.add('hidden');
-        afterVideo.classList.remove('hidden');
-        afterVideo.src = url;
+        [afterImg, afterImg2].forEach(img => {
+          if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); }
+        });
+        [afterVideo, afterVideo2].forEach(v => {
+          if (v) {
+            v.src = url;
+            v.classList.remove('hidden');
+            v.classList.add('active');
+            v.load();
+            v.currentTime = 0;
+            v.play().catch(() => {});
+          }
+        });
       } else {
-        afterVideo.classList.add('hidden');
-        afterImg.classList.remove('hidden');
-        afterImg.src = url;
+        [afterVideo, afterVideo2].forEach(v => {
+          if (v) { v.src = ''; v.classList.remove('active'); v.classList.add('hidden'); }
+        });
+        [afterImg, afterImg2].forEach(img => {
+          if (img) {
+            img.src = url;
+            img.classList.remove('hidden');
+            img.classList.add('loaded');
+          }
+        });
       }
 
       videoProgress.classList.add('hidden');
-      setStatus('ok', '✓ Đã chèn logo thành công!');
+      setStatus('ok', '✓ Đã chèn logo thành công! Xem kết quả ở cột SAU');
       btnSave.disabled  = false;
       btnApply.disabled = false;
 
@@ -1323,23 +1588,34 @@
 
   // ── Reset ────────────────────────────────────────────────────────────────────
   btnReset.addEventListener('click', () => {
-    mediaFile = null; resultBlob = null;
+    mediaFile = null; resultBlob = null; customLogoRect = null;
     lmIdle.classList.remove('hidden');
     lmLoaded.classList.add('hidden');
     lmName.textContent = '';
     mediaInput.value = '';
-    ['before-img','before-video','after-img','after-video'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.src = ''; el.classList.add('hidden'); }
+    if (logoDragBox) logoDragBox.classList.add('hidden');
+    [beforeImg, afterImg, beforeImg2, afterImg2].forEach(img => {
+      if (img) { img.src = ''; img.classList.remove('loaded'); img.classList.add('hidden'); }
     });
-    ['before-empty','after-empty'].forEach(id => {
-      const el = document.getElementById(id);
+    [beforeVideo, afterVideo, beforeVideo2, afterVideo2].forEach(v => {
+      if (v) { v.src = ''; v.classList.remove('active'); v.classList.add('hidden'); }
+    });
+    [beforeEmpty, afterEmpty, beforeEmpty2, afterEmpty2].forEach(el => {
       if (el) el.classList.remove('hidden');
     });
     videoProgress.classList.add('hidden');
     setStatus('idle', 'Chọn ảnh/video và logo để bắt đầu');
     btnApply.disabled = true;
     btnSave.disabled  = true;
+  });
+
+  // Listen for tab switch to show/hide drag box
+  window.addEventListener('tab-switched', e => {
+    if (e.detail === 'logo') {
+      updateDragBoxUI();
+    } else {
+      if (logoDragBox) logoDragBox.classList.add('hidden');
+    }
   });
 
 })();
