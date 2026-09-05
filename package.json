@@ -12,8 +12,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --enable-logging",
-    "build": "electron-packager . \"Gemini Studio Toolkit\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent --ignore=convert-icon.mjs --ignore=create-ico.js --asar",
-    "build:dir": "electron-packager . \"Gemini Studio Toolkit\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent",
+    "build": "electron-packager . \"Gemini Studio Toolkit\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent --ignore=convert-icon.mjs --ignore=create-ico.js --ignore=\\.zip$ --ignore=test-.*\\.js --asar",
+    "build:dir": "electron-packager . \"Gemini Studio Toolkit\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=node_modules --ignore=dist --ignore=\\.agent --ignore=\\.zip$ --ignore=test-.*\\.js",
     "dist": "electron-builder --win"
   },
   "devDependencies": {
